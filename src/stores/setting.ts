@@ -350,6 +350,10 @@ export interface SettingState {
   showSongOperations: boolean;
   /** 显示歌曲歌手 */
   showSongArtist: boolean;
+  /** API 配置 */
+  neteaseApi: string;
+  kugouApi: string;
+  qqApi: string;
   /** 侧边栏隐藏 */
   sidebarHide: {
     /** 隐藏发现音乐 */
@@ -660,6 +664,9 @@ export const useSettingStore = defineStore("setting", {
     showSongDuration: true,
     showSongOperations: true,
     showSongArtist: true,
+    neteaseApi: '',
+    kugouApi: '',
+    qqApi: '',
     sidebarHide: {
       hideDiscover: false,
       hidePersonalFM: false,

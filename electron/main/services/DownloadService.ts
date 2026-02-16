@@ -56,11 +56,10 @@ export class DownloadService {
         fileName,
         fileType,
         path,
-        lyric,
+lyric,
         downloadMeta,
         downloadCover,
         downloadLyric,
-        saveMetaFile,
         songData,
         skipIfExist,
         referer,
@@ -277,7 +276,7 @@ export class DownloadService {
     url: string,
     tempFilePath: string,
     finalFilePath: string,
-    metadata: any,
+    _metadata: any,
     onProgress: (data: any) => void,
     referer?: string
   ): Promise<void> {

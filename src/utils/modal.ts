@@ -334,16 +334,18 @@ export const openDownloadSongs = async (songs: SongType[]): Promise<void> => {
 
 // 打开设置
 export const openSetting = async (type: SettingType = "general", scrollTo?: string) => {
-  if (isModalOpen("setting", "设置页面已打开")) return;
+  // 强制清除之前的标记，确保设置页面可以正常打开
+  setModalClosed("setting");
   setModalOpen("setting");
   const { default: MainSetting } = await import("@/components/Setting/MainSetting.vue");
   window.$modal.create({
     preset: "card",
     transformOrigin: "center",
     autoFocus: false,
-    maskClosable: false,
-    closeOnEsc: false,
+    maskClosable: true,
+    closeOnEsc: true,
     bordered: false,
+    closable: true,
     class: "main-setting",
     content: () => {
       return h(MainSetting, { type, scrollTo });

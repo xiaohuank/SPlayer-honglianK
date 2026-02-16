@@ -409,14 +409,16 @@ export const useSongMenu = () => {
         key: "download-album",
         label: "下载专辑",
         show:
-          settingStore.contextMenuOptions.download &&
-          !isLocal &&
-          type === "song" &&
-          !isDownloading &&
-          song.album && song.album.id,
+          !!(
+            settingStore.contextMenuOptions.download &&
+            !isLocal &&
+            type === "song" &&
+            !isDownloading &&
+            song.album && typeof song.album !== 'string' && song.album.id
+          ),
         props: {
           onClick: () => {
-            window.$message.info(`开始下载专辑 ${song.album.name}`);
+            window.$message.info(`开始下载专辑 ${typeof song.album === 'string' ? song.album : song.album?.name}`);
             // 这里可以实现下载整个专辑的逻辑
           },
         },

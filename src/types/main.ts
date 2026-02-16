@@ -338,6 +338,7 @@ export type SettingType =
   | "keyboard"
   | "local"
   | "network"
+  | "hongliank"
   | "about";
 
 // UpdateLog

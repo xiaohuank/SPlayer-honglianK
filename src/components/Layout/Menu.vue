@@ -38,7 +38,6 @@ import {
   type MenuInst,
   type MenuOption,
   NAvatar,
-  NBadge,
   NButton,
   NEllipsis,
   NText,
