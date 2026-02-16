@@ -79,50 +79,59 @@ class SongDownloadStrategy implements DownloadStrategy {
 
     // 获取歌词
     if (this.shouldDownloadLyrics()) {
-      this.lyricResult = (await songLyric(this.song.id)) as LyricResult;
+      console.log(`[DownloadManager] 获取歌词: ${this.song.name} (ID: ${this.song.id})`);
+      try {
+        this.lyricResult = (await songLyric(this.song.id)) as LyricResult;
+        console.log(`[DownloadManager] 歌词获取结果:`, this.lyricResult);
 
-      const options: LyricProcessorOptions = {
-        downloadLyricToTraditional: this.settingStore.downloadLyricToTraditional,
-        downloadLyricTranslation: this.settingStore.downloadLyricTranslation,
-        downloadLyricRomaji: this.settingStore.downloadLyricRomaji,
-        downloadLyricEncoding: this.settingStore.downloadLyricEncoding,
-      };
+        const options: LyricProcessorOptions = {
+          downloadLyricToTraditional: this.settingStore.downloadLyricToTraditional,
+          downloadLyricTranslation: this.settingStore.downloadLyricTranslation,
+          downloadLyricRomaji: this.settingStore.downloadLyricRomaji,
+          downloadLyricEncoding: this.settingStore.downloadLyricEncoding,
+        };
 
-      // 处理基础歌词
-      this.basicLyric = await LyricProcessor.processBasic(this.lyricResult, options);
+        // 处理基础歌词
+        this.basicLyric = await LyricProcessor.processBasic(this.lyricResult, options);
+        console.log(`[DownloadManager] 处理后歌词长度: ${this.basicLyric.length}`);
 
-      // 处理逐字歌词 (后续使用)
-      const { downloadMakeYrc, downloadSaveAsAss } = this.settingStore;
-      if (downloadMakeYrc || downloadSaveAsAss) {
-        let ttmlLyric = "";
-        const yrcLyric = this.lyricResult?.yrc?.lyric || "";
-        let qmResultData;
+        // 处理逐字歌词 (后续使用)
+        const { downloadMakeYrc, downloadSaveAsAss } = this.settingStore;
+        if (downloadMakeYrc || downloadSaveAsAss) {
+          let ttmlLyric = "";
+          const yrcLyric = this.lyricResult?.yrc?.lyric || "";
+          let qmResultData;
 
-        try {
-          const ttmlRes = await songLyricTTML(this.song.id);
-          if (typeof ttmlRes === "string") ttmlLyric = ttmlRes;
-        } catch (e) {
-          console.error("Failed to fetch TTML", e);
-        }
-
-        if (!ttmlLyric && !yrcLyric) {
           try {
-            const artistsStr = Array.isArray(this.song.artists)
-              ? this.song.artists.map((a) => a.name).join("/")
-              : String(this.song.artists || "");
-            const keyword = `${this.song.name}-${artistsStr}`;
-            const qmResult = await qqMusicMatch(keyword);
-            if (qmResult?.code === 200 && qmResult?.qrc) {
-              qmResultData = qmResult;
-            }
+            const ttmlRes = await songLyricTTML(this.song.id);
+            if (typeof ttmlRes === "string") ttmlLyric = ttmlRes;
           } catch (e) {
-            console.error("QM Fallback failed", e);
+            console.error("Failed to fetch TTML", e);
           }
-        }
 
-        const verbatim = LyricProcessor.parseVerbatim(ttmlLyric, yrcLyric, qmResultData);
-        this.ttmlLyric = verbatim.ttml;
-        this.yrcLyric = verbatim.yrc;
+          if (!ttmlLyric && !yrcLyric) {
+            try {
+              const artistsStr = Array.isArray(this.song.artists)
+                ? this.song.artists.map((a) => a.name).join("/")
+                : String(this.song.artists || "");
+              const keyword = `${this.song.name}-${artistsStr}`;
+              const qmResult = await qqMusicMatch(keyword);
+              if (qmResult?.code === 200 && qmResult?.qrc) {
+                qmResultData = qmResult;
+              }
+            } catch (e) {
+              console.error("QM Fallback failed", e);
+            }
+          }
+
+          const verbatim = LyricProcessor.parseVerbatim(ttmlLyric, yrcLyric, qmResultData);
+          this.ttmlLyric = verbatim.ttml;
+          this.yrcLyric = verbatim.yrc;
+        }
+      } catch (error) {
+        console.error(`[DownloadManager] 获取歌词失败:`, error);
+        // 即使获取歌词失败，也继续下载歌曲
+        this.basicLyric = "";
       }
     }
   }
@@ -135,6 +144,13 @@ class SongDownloadStrategy implements DownloadStrategy {
     const targetPath = this.getDownloadPath();
     const { downloadMeta, downloadCover, saveMetaFile, downloadThreadCount, enableDownloadHttp2 } =
       this.settingStore;
+
+    console.log(`[DownloadManager] 生成下载配置:`, {
+      fileName,
+      downloadLyric: this.shouldDownloadLyrics(),
+      lyricLength: this.basicLyric.length,
+      hasLyric: !!this.basicLyric
+    });
 
     return {
       fileName,

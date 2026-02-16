@@ -217,10 +217,19 @@ export class DownloadService {
       }
 
       // 创建同名歌词文件
+      ipcLog.info(`📝 Lyric creation check: lyric=${!!lyric}, downloadLyric=${downloadLyric}, lyric length=${lyric?.length || 0}`);
       if (lyric && downloadLyric) {
         const lrcPath = join(songFolderPath, `${fileName}.lrc`);
         await writeFile(lrcPath, lyric, "utf-8");
         ipcLog.info(`📝 Created lyric file: ${lrcPath}`);
+      } else {
+        if (!downloadLyric) {
+          ipcLog.info(`📝 Skipped lyric creation: downloadLyric is false`);
+        } else if (!lyric) {
+          ipcLog.info(`📝 Skipped lyric creation: lyric is empty or null`);
+        } else if (lyric.length === 0) {
+          ipcLog.info(`📝 Skipped lyric creation: lyric is empty string`);
+        }
       }
 
       // 下载封面文件
