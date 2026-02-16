@@ -174,14 +174,15 @@
           :size="20"
           @click.stop="toLikeSong(song, !dataStore.isLikeSong(song.id))"
           @delclick.stop
+          class="action-icon"
         />
         <!-- 下载歌曲 -->
         <SvgIcon
-          v-if="!isSmallScreen && isElectron && !song.path"
+          v-if="!isSmallScreen && !song.path"
           name="Download"
           :size="20"
-          @click.stop="openDownloadModal([song])"
-          @delclick.stop
+          @click.stop="openDownloadSong(song)"
+          class="action-icon"
         />
         <!-- 移动端菜单 -->
         <SvgIcon v-else name="More" :size="20" @click.stop="emit('show-menu', $event)" />
@@ -210,7 +211,7 @@
 import { QualityType, type SongType } from "@/types/main";
 import { useStatusStore, useMusicStore, useDataStore, useSettingStore } from "@/stores";
 import { formatNumber, formatFileSize } from "@/utils/helper";
-import { openJumpArtist, openDownloadModal } from "@/utils/modal";
+import { openJumpArtist, openDownloadSong } from "@/utils/modal";
 import { removeBrackets } from "@/utils/format";
 import { toLikeSong } from "@/utils/auth";
 import { isObject } from "lodash-es";
@@ -218,7 +219,6 @@ import { formatTimestamp, msToTime } from "@/utils/time";
 import { usePlayerController } from "@/core/player/PlayerController";
 import { useMobile } from "@/composables/useMobile";
 import { EXPLICIT_CONTENT_MARK } from "@/utils/meta";
-import { isElectron } from "@/utils/env";
 
 const props = defineProps<{
   // 歌曲
@@ -454,9 +454,9 @@ const albumName = computed(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
     width: 80px;
-    .n-icon {
+    gap: 12px;
+    .action-icon {
       color: var(--primary-hex);
       transition: transform 0.3s;
       cursor: pointer;

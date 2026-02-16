@@ -51,14 +51,6 @@
               下载设置
             </n-button>
           </n-input-group>
-          <!-- 可选下载目录 -->
-          <n-select
-            v-if="optionalDownloadPaths.length > 0"
-            v-model:value="selectedDownloadPath"
-            :options="downloadPathOptions"
-            placeholder="选择可选下载目录（默认使用默认目录）"
-            style="margin-top: 12px"
-          />
         </n-collapse-item>
       </n-collapse>
       <template v-if="isBatch">
@@ -108,17 +100,7 @@ const isBatch = computed(() => songs.value.length > 1);
 const isCloudSong = computed(() => songs.value.some((song) => song.pc));
 
 const selectedQuality = ref<SongLevelType>(props.quality || settingStore.downloadSongLevel || "h");
-const selectedDownloadPath = ref<string>("");
 const downloadPath = computed(() => settingStore.downloadPath);
-const optionalDownloadPaths = computed(() => settingStore.optionalDownloadPaths);
-
-// 下载路径选项
-const downloadPathOptions = computed(() => {
-  return optionalDownloadPaths.value.map((path, index) => ({
-    label: `目录 ${index + 1}: ${path}`,
-    value: path,
-  }));
-});
 
 // 是否可以下载（需要配置下载目录）
 const canDownload = computed(() => {
@@ -174,7 +156,7 @@ const handleConfirm = () => {
 
   // 添加到下载队列
   songs.value.forEach((song) => {
-    downloadManager.addDownload(song, selectedQuality.value, selectedDownloadPath.value);
+    downloadManager.addDownload(song, selectedQuality.value);
   });
 
   emit("close");

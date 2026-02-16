@@ -1,9 +1,11 @@
-import { existsSync } from "fs";
+import { existsSync, createWriteStream } from "fs";
 import { rename, stat, unlink } from "fs/promises";
 import { cacheLog } from "../logger";
 import { useStore } from "../store";
 import { loadNativeModule } from "../utils/native-loader";
 import { CacheService } from "./CacheService";
+import https from "node:https";
+import http from "node:http";
 
 type toolModule = typeof import("@native/tools");
 const tools: toolModule = loadNativeModule("tools.node", "tools");
@@ -93,25 +95,27 @@ export class MusicCacheService {
 
       // 下载并写入
       try {
-        if (!tools) {
-          throw new Error("Native tools not loaded");
+        // 尝试使用 native tools 下载
+        if (tools && tools.DownloadTask) {
+          cacheLog.info(`📥 Using native downloader for cache: ${url}`);
+          const store = useStore();
+          const enableHttp2 = store.get("enableDownloadHttp2", true) as boolean;
+
+          const task = new tools.DownloadTask();
+          await task.download(
+            url,
+            tempPath,
+            null, // No metadata for cache
+            4, // Thread count
+            null, // Referer
+            () => {}, // No progress callback needed for cache currently
+            enableHttp2,
+          );
+        } else {
+          // Fallback: 使用 Node.js 内置模块下载
+          cacheLog.info(`📥 Using fallback downloader for cache: ${url}`);
+          await this.fallbackDownload(url, tempPath);
         }
-
-        // 使用 Rust 下载器
-
-        const store = useStore();
-        const enableHttp2 = store.get("enableDownloadHttp2", true) as boolean;
-
-        const task = new tools.DownloadTask();
-        await task.download(
-          url,
-          tempPath,
-          null, // No metadata for cache
-          4, // Thread count
-          null, // Referer
-          () => {}, // No progress callback needed for cache currently
-          enableHttp2,
-        );
 
         // 检查临时文件是否存在
         if (!existsSync(tempPath)) throw new Error("下载失败：临时文件未创建");
@@ -149,5 +153,45 @@ export class MusicCacheService {
     });
 
     return downloadPromise;
+  }
+
+  /**
+   * Fallback 下载方法 - 使用 Node.js 内置模块
+   */
+  private async fallbackDownload(url: string, tempPath: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const protocol = url.startsWith('https://') ? https : http;
+      const request = protocol.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      }, (response) => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`HTTP error! status: ${response.statusCode}`));
+          return;
+        }
+
+        const fileStream = createWriteStream(tempPath);
+
+        response.pipe(fileStream);
+
+        fileStream.on('finish', () => {
+          resolve();
+        });
+
+        fileStream.on('error', (err) => {
+          reject(err);
+        });
+      });
+
+      request.on('error', (err) => {
+        reject(err);
+      });
+
+      request.setTimeout(60000, () => {
+        request.destroy();
+        reject(new Error('Download timeout'));
+      });
+    });
   }
 }

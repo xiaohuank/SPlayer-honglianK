@@ -332,26 +332,6 @@ export const openDownloadSongs = async (songs: SongType[]): Promise<void> => {
   });
 };
 
-// 打开下载模态框
-export const openDownloadModal = async (songs: SongType[]): Promise<void> => {
-  if (!isLogin()) return openUserLogin();
-  if (!songs || songs.length === 0) {
-    window.$message.warning("请选择要下载的歌曲");
-    return;
-  }
-  const { default: DownloadModal } = await import("@/components/Modal/DownloadModal.vue");
-  const modal = window.$modal.create({
-    preset: "card",
-    transformOrigin: "center",
-    autoFocus: false,
-    style: { width: "600px" },
-    title: songs.length > 1 ? "批量下载" : "下载歌曲",
-    content: () => {
-      return h(DownloadModal, { songs, onClose: () => modal.destroy() });
-    },
-  });
-};
-
 // 打开设置
 export const openSetting = async (type: SettingType = "general", scrollTo?: string) => {
   if (isModalOpen("setting", "设置页面已打开")) return;
@@ -364,15 +344,11 @@ export const openSetting = async (type: SettingType = "general", scrollTo?: stri
     maskClosable: false,
     closeOnEsc: false,
     bordered: false,
-    closable: true,
     class: "main-setting",
     content: () => {
       return h(MainSetting, { type, scrollTo });
     },
     onAfterLeave: () => {
-      setModalClosed("setting");
-    },
-    onClose: () => {
       setModalClosed("setting");
     },
   });

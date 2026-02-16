@@ -156,7 +156,6 @@ declare module 'vue' {
     PlaylistAdd: typeof import('./src/components/Modal/PlaylistAdd.vue')['default']
     PlaylistPageManager: typeof import('./src/components/Modal/Setting/PlaylistPageManager.vue')['default']
     Provider: typeof import('./src/components/Global/Provider.vue')['default']
-    RealTimeGraph: typeof import('./src/components/UI/RealTimeGraph.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     ScalingModal: typeof import('./src/components/Modal/ScalingModal.vue')['default']

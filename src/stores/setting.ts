@@ -112,22 +112,8 @@ export interface SettingState {
   customBracketReplacement: string;
   /** 下载路径 */
   downloadPath: string;
-  /** 可选下载目录 */
-  optionalDownloadPaths: string[];
   /** 下载线程数 */
   downloadThreadCount: number;
-  /** 网易云音乐启用状态 */
-  enableNeteaseMusic: boolean;
-  /** 酷狗音乐启用状态 */
-  enableKugouMusic: boolean;
-  /** QQ音乐启用状态 */
-  enableQQMusic: boolean;
-  /** 网易云音乐API地址 */
-  neteaseApi: string;
-  /** 酷狗音乐API地址 */
-  kugouApi: string;
-  /** QQ音乐API地址 */
-  qqApi: string;
   /** 是否启用缓存 */
   cacheEnabled: boolean;
   /** 是否缓存歌曲（音频文件） */
@@ -426,6 +412,7 @@ export interface SettingState {
     wiki: boolean;
     search: boolean;
     download: boolean;
+    batchDownload: boolean;
     copyName: boolean;
     musicTagEditor: boolean;
   };
@@ -639,15 +626,7 @@ export const useSettingStore = defineStore("setting", {
     hideAllCovers: false,
     hideMiniPlayerCover: false,
     downloadPath: "",
-    optionalDownloadPaths: [],
-
     downloadThreadCount: 8,
-    enableNeteaseMusic: true,
-    enableKugouMusic: true,
-    enableQQMusic: true,
-    neteaseApi: '',
-    kugouApi: '',
-    qqApi: '',
     cacheEnabled: true,
     songCacheEnabled: true,
     fileNameFormat: "title-artist",
@@ -727,6 +706,7 @@ export const useSettingStore = defineStore("setting", {
       wiki: true,
       search: true,
       download: true,
+      batchDownload: true,
       copyName: true,
       musicTagEditor: true,
     },

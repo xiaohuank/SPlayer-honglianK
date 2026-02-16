@@ -552,11 +552,11 @@ onBeforeUnmount(() => {
       padding-right: 20px;
     }
     .actions {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 80px;
-      }
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+    }
     .meta {
       width: 50px;
       text-align: center;

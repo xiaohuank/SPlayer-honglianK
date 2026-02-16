@@ -1,5 +1,3 @@
-import { h } from "vue";
-import { NButton, NList, NListItem } from "naive-ui";
 import { useSettingStore, useStatusStore } from "@/stores";
 import { useCacheManager } from "@/core/resource/CacheManager";
 import { formatFileSize } from "@/utils/helper";
@@ -247,7 +245,7 @@ export const useLocalSettings = (): SettingConfig => {
         ],
       },
       {
-        title: "缓存配置",
+        title: "本地与缓存",
         items: [
           {
             key: "cacheEnabled",
@@ -289,22 +287,8 @@ export const useLocalSettings = (): SettingConfig => {
             condition: () => settingStore.cacheEnabled,
           },
           {
-            key: "clearCache",
-            label: "缓存占用与清理",
-            type: "button",
-            description: () => `当前缓存占用：${cacheSizeDisplay.value}`,
-            buttonLabel: "清空缓存",
-            action: confirmClearCache,
-            componentProps: { type: "error" },
-          },
-        ],
-      },
-      {
-        title: "下载配置",
-        items: [
-          {
             key: "downloadPath",
-            label: "默认下载目录",
+            label: "下载保存位置",
             type: "button",
             description: computed(() => settingStore.downloadPath || "若不设置则无法进行下载"),
             buttonLabel: "更改",
@@ -319,76 +303,20 @@ export const useLocalSettings = (): SettingConfig => {
             },
           },
           {
-            key: "optionalDownloadPaths",
-            label: "可选下载目录",
-            type: "custom",
-            description: "添加多个可选的下载目录，下载时可选择使用哪个目录",
-            customComponent: {
-              render: () => {
-                const addOptionalPath = async () => {
-                  const path = await window.electron.ipcRenderer.invoke("choose-path", "选择可选下载目录");
-                  if (path) {
-                    const paths = [...settingStore.optionalDownloadPaths];
-                    if (!paths.includes(path)) {
-                      paths.push(path);
-                      settingStore.optionalDownloadPaths = paths;
-                    }
-                  }
-                };
-                
-                const removeOptionalPath = (index: number) => {
-                  const paths = [...settingStore.optionalDownloadPaths];
-                  paths.splice(index, 1);
-                  settingStore.optionalDownloadPaths = paths;
-                };
-                
-                return h(
-                  "div",
-                  { style: { marginTop: "8px" } },
-                  [
-                    h(
-                      NButton,
-                      {
-                        type: "primary",
-                        secondary: true,
-                        strong: true,
-                        onClick: addOptionalPath,
-                        style: { marginBottom: "12px" },
-                      },
-                      { default: () => "添加目录" }
-                    ),
-                    h(
-                      NList,
-                      null,
-                      {
-                        default: () =>
-                          settingStore.optionalDownloadPaths.map((path, index) =>
-                            h(
-                              NListItem,
-                              {
-                                key: index,
-                                suffix: h(
-                                  NButton,
-                                  {
-                                    type: "error",
-                                    secondary: true,
-                                    strong: true,
-                                    size: "small",
-                                    onClick: () => removeOptionalPath(index),
-                                  },
-                                  { default: () => "删除" }
-                                ),
-                              },
-                              { default: () => path }
-                            )
-                          ),
-                      }
-                    ),
-                  ]
-                );
-              },
-            },
+            key: "clearCache",
+            label: "缓存占用与清理",
+            type: "button",
+            description: () => `当前缓存占用：${cacheSizeDisplay.value}`,
+            buttonLabel: "清空缓存",
+            action: confirmClearCache,
+            componentProps: { type: "error" },
           },
+        ],
+      },
+      {
+        title: "下载配置",
+        items: [
+
           {
             key: "enableDownloadHttp2",
             label: "启用 HTTP/2 下载",
@@ -425,43 +353,6 @@ export const useLocalSettings = (): SettingConfig => {
             }),
           },
           {
-            key: "musicServices",
-            label: "音乐服务",
-            type: "group",
-            items: [
-              {
-                key: "enableNeteaseMusic",
-                label: "启用网易云音乐",
-                type: "switch",
-                description: "启用或禁用网易云音乐服务",
-                value: computed({
-                  get: () => settingStore.enableNeteaseMusic,
-                  set: (v) => (settingStore.enableNeteaseMusic = v),
-                }),
-              },
-              {
-                key: "enableKugouMusic",
-                label: "启用酷狗音乐",
-                type: "switch",
-                description: "启用或禁用酷狗音乐服务",
-                value: computed({
-                  get: () => settingStore.enableKugouMusic,
-                  set: (v) => (settingStore.enableKugouMusic = v),
-                }),
-              },
-              {
-                key: "enableQQMusic",
-                label: "启用QQ音乐",
-                type: "switch",
-                description: "启用或禁用QQ音乐服务",
-                value: computed({
-                  get: () => settingStore.enableQQMusic,
-                  set: (v) => (settingStore.enableQQMusic = v),
-                }),
-              },
-            ],
-          },
-          {
             key: "downloadMeta",
             label: "下载歌曲元信息",
             type: "switch",
@@ -487,7 +378,6 @@ export const useLocalSettings = (): SettingConfig => {
             label: "同时下载歌词",
             type: "switch",
             description: "下载歌曲时同时下载歌词",
-            disabled: computed(() => !settingStore.downloadMeta),
             value: computed({
               get: () => settingStore.downloadLyric,
               set: (v) => (settingStore.downloadLyric = v),

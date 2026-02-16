@@ -6,11 +6,8 @@ import { processLog } from "../logger";
 import { useStore } from "../store";
 import { loadNativeModule } from "../utils/native-loader";
 
-// 检查是否跳过原生模块构建
-const skipNativeBuild = process.env.SKIP_NATIVE_BUILD === "true";
-
-type toolModule = typeof import("@native/tools") | null;
-const tools: toolModule = skipNativeBuild ? null : loadNativeModule("tools.node", "tools");
+type toolModule = typeof import("@native/tools");
+const tools: toolModule = loadNativeModule("tools.node", "tools");
 
 /** 本地音乐服务 */
 export class LocalMusicService {
@@ -82,16 +79,7 @@ export class LocalMusicService {
     // 确保初始化完成
     await this.ensureInitialized();
     if (!this.db) throw new Error("DB not initialized");
-    if (!tools && !skipNativeBuild) throw new Error("Native tools not loaded");
     if (!dirPaths || dirPaths.length === 0) {
-      if (!ignoreDelete) {
-        this.db.clearTracks();
-      }
-      return;
-    }
-    // 如果跳过原生模块构建，直接返回空结果
-    if (skipNativeBuild || !tools) {
-      processLog.warn("[LocalMusicService] 跳过原生模块扫描，返回空结果");
       if (!ignoreDelete) {
         this.db.clearTracks();
       }

@@ -52,6 +52,7 @@ const openDropdown = (
       playListId || 0,
       isDailyRecommend,
       (event, args) => emit(event, args),
+      _data,
     );
     // 头部信息
     const headerOption: DropdownOption = {

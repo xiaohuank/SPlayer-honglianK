@@ -171,17 +171,9 @@ const menuOptions = computed<MenuOption[] | MenuGroupOption[]>(() => {
         },
         {
           key: "download",
-          label: () =>
-            h(
-              NBadge,
-              {
-                show: dataStore.downloadingSongs.length > 0,
-                value: dataStore.downloadingSongs.length,
-                offset: [22, 13],
-              },
-              () => "下载管理",
-            ),
-          show: statusStore.isDeveloperMode && isElectron && !settingStore.sidebarHide.hideDownload,
+          link: "download",
+          label: "下载管理",
+          show: isElectron && !settingStore.sidebarHide.hideDownload,
           icon: renderIcon("Download"),
         },
         {
@@ -247,7 +239,7 @@ const menuOptions = computed<MenuOption[] | MenuGroupOption[]>(() => {
                 strong: true,
                 secondary: true,
                 renderIcon: renderIcon("Add"),
-                onclick: (event: Event) => {
+                onClick: (event: Event) => {
                   event.stopPropagation();
                   openCreatePlaylist(statusStore.playlistMode === "local");
                 },
@@ -317,7 +309,7 @@ const menuOptions = computed<MenuOption[] | MenuGroupOption[]>(() => {
                 strong: true,
                 secondary: true,
                 renderIcon: renderIcon("Add"),
-                onclick: (event: Event) => {
+                onClick: (event: Event) => {
                   event.stopPropagation();
                   openCreatePlaylist(true);
                 },
@@ -389,9 +381,11 @@ const localPlaylistMenu = computed<MenuOption[]>(() => {
 const renderMenuLabel = (option: MenuOption) => {
   // 路由链接
   if ("link" in option) {
-    return h(RouterLink, { to: { name: option.link as string } }, () => option.label as string);
+    return h(RouterLink, { to: { name: option.link as string } }, {
+      default: () => typeof option.label === "function" ? option.label() : option.label
+    });
   }
-  return typeof option.label === "function" ? option.label() : (option.label as string);
+  return typeof option.label === "function" ? option.label() : option.label;
 };
 
 // 菜单项更改
@@ -445,6 +439,10 @@ const menuUpdate = (key: string, item: MenuOption) => {
         });
         break;
       default:
+        // 处理普通路由链接
+        if ("link" in item) {
+          router.push({ name: item.link as string });
+        }
         break;
     }
   }

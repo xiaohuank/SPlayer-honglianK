@@ -59,7 +59,6 @@ class SongDownloadStrategy implements DownloadStrategy {
   constructor(
     public readonly song: SongType,
     private quality: SongLevelType,
-    private customPath?: string,
   ) {}
 
   get id() {
@@ -142,7 +141,7 @@ class SongDownloadStrategy implements DownloadStrategy {
       fileType: this.fileType,
       path: targetPath,
       downloadMeta: downloadMeta,
-      downloadCover: downloadCover && downloadMeta,
+      downloadCover: downloadCover,
       downloadLyric: this.shouldDownloadLyrics(),
       saveMetaFile: downloadMeta && saveMetaFile,
       songData: cloneDeep(this.song),
@@ -312,7 +311,7 @@ class SongDownloadStrategy implements DownloadStrategy {
    * @returns 下载路径
    */
   private getDownloadPath(): string {
-    const finalPath = this.customPath || this.settingStore.downloadPath;
+    const finalPath = this.settingStore.downloadPath;
     const infoObj = getPlayerInfoObj(this.song) || { artist: "未知歌手", album: "未知专辑" };
     const safeArtist = (infoObj.artist || "未知歌手").replace(/[/:*?"<>|]/g, "&");
     const safeAlbum = (infoObj.album || "未知专辑").replace(/[/:*?"<>|]/g, "&");
@@ -324,7 +323,7 @@ class SongDownloadStrategy implements DownloadStrategy {
   }
 
   private shouldDownloadLyrics(): boolean {
-    return this.settingStore.downloadLyric && this.settingStore.downloadMeta;
+    return this.settingStore.downloadLyric;
   }
 }
 
@@ -382,7 +381,7 @@ class DownloadManager {
         ? (transferredBytes / 1024 / 1024).toFixed(2) + "MB"
         : "0MB";
       const total = totalBytes ? (totalBytes / 1024 / 1024).toFixed(2) + "MB" : "0MB";
-      dataStore.updateDownloadProgress(id, Number((percent * 100).toFixed(1)), transferred, total);
+      dataStore.updateDownloadProgress(id, Number(percent.toFixed(1)), transferred, total);
     });
   }
   /**
@@ -405,14 +404,13 @@ class DownloadManager {
    * 添加下载任务
    * @param song 歌曲信息
    * @param quality 歌曲质量
-   * @param customPath 自定义下载路径
    */
-  public async addDownload(song: SongType, quality: SongLevelType, customPath?: string) {
+  public async addDownload(song: SongType, quality: SongLevelType) {
     this.init();
     const dataStore = useDataStore();
     if (this.checkExisting(song.id)) return;
     dataStore.addDownloadingSong(song, quality);
-    const strategy = new SongDownloadStrategy(song, quality, customPath);
+    const strategy = new SongDownloadStrategy(song, quality);
     this.queue.push(strategy);
     this.processQueue();
   }
