@@ -8,7 +8,7 @@ import https from "node:https";
 import http from "node:http";
 
 type toolModule = typeof import("@native/tools");
-const tools: toolModule = loadNativeModule("tools.node", "tools");
+const tools: toolModule | null = loadNativeModule("tools.node", "tools");
 
 export class MusicCacheService {
   private static instance: MusicCacheService;
@@ -95,12 +95,11 @@ export class MusicCacheService {
 
       // 下载并写入
       try {
-        // 尝试使用 native tools 下载
-        if (tools && tools.DownloadTask) {
-          cacheLog.info(`📥 Using native downloader for cache: ${url}`);
-          const store = useStore();
-          const enableHttp2 = store.get("enableDownloadHttp2", true) as boolean;
+        const store = useStore();
+        const enableHttp2 = store.get("enableDownloadHttp2", true) as boolean;
 
+        if (tools) {
+          // 使用 Rust 下载器
           const task = new tools.DownloadTask();
           await task.download(
             url,
@@ -112,8 +111,7 @@ export class MusicCacheService {
             enableHttp2,
           );
         } else {
-          // Fallback: 使用 Node.js 内置模块下载
-          cacheLog.info(`📥 Using fallback downloader for cache: ${url}`);
+          // 使用 Node.js 内置模块作为 fallback
           await this.fallbackDownload(url, tempPath);
         }
 
@@ -156,23 +154,23 @@ export class MusicCacheService {
   }
 
   /**
-   * Fallback 下载方法 - 使用 Node.js 内置模块
+   * 使用 Node.js 内置模块下载文件（fallback）
    */
-  private async fallbackDownload(url: string, tempPath: string): Promise<void> {
+  private async fallbackDownload(url: string, filePath: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https://') ? https : http;
       const request = protocol.get(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36',
+          'Referer': 'https://music.163.com',
+        },
       }, (response) => {
         if (response.statusCode !== 200) {
-          reject(new Error(`HTTP error! status: ${response.statusCode}`));
+          reject(new Error(`HTTP error ${response.statusCode}`));
           return;
         }
 
-        const fileStream = createWriteStream(tempPath);
-
+        const fileStream = createWriteStream(filePath);
         response.pipe(fileStream);
 
         fileStream.on('finish', () => {
@@ -188,10 +186,7 @@ export class MusicCacheService {
         reject(err);
       });
 
-      request.setTimeout(60000, () => {
-        request.destroy();
-        reject(new Error('Download timeout'));
-      });
+      request.end();
     });
   }
 }

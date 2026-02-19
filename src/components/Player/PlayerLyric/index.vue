@@ -85,19 +85,41 @@
       >
         <SvgIcon name="Settings" />
       </div>
+      <div
+        v-if="settingStore.fullscreenPlayerElements.lyricSettings"
+        class="menu-icon"
+        @click="openLyricTools"
+      >
+        <SvgIcon name="Music" />
+      </div>
     </n-flex>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed, ref, onMounted, onBeforeUnmount } from "vue";
+import { useRafFn } from "@vueuse/core";
 import { usePlayerController } from "@/core/player/PlayerController";
 import { useMusicStore, useSettingStore, useStatusStore } from "@/stores";
 import { openSetting, openCopyLyrics } from "@/utils/modal";
+import { useLyricManager } from "@/core/player/LyricManager";
 
 const musicStore = useMusicStore();
 const settingStore = useSettingStore();
 const statusStore = useStatusStore();
 const player = usePlayerController();
+const lyricManager = useLyricManager();
+
+/**
+ * 打开歌词工具菜单
+ */
+const openLyricTools = () => {
+  if (!musicStore.playSong) return;
+  
+  // 重新获取歌词
+  statusStore.lyricLoading = true;
+  lyricManager.handleLyric(musicStore.playSong);
+};
 
 /**
  * 当前歌曲 id

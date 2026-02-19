@@ -7,7 +7,7 @@ import { useStore } from "../store";
 import { loadNativeModule } from "../utils/native-loader";
 
 type toolModule = typeof import("@native/tools");
-const tools: toolModule = loadNativeModule("tools.node", "tools");
+const tools: toolModule | null = loadNativeModule("tools.node", "tools");
 
 /** 本地音乐服务 */
 export class LocalMusicService {
@@ -84,6 +84,11 @@ export class LocalMusicService {
         this.db.clearTracks();
       }
       return;
+    }
+    // 检查原生模块是否加载成功
+    if (!tools || !tools.scanMusicLibrary) {
+      processLog.error("[LocalMusicService] 原生模块未加载，无法扫描音乐库");
+      throw new Error("NATIVE_MODULE_NOT_LOADED");
     }
     this.isRefreshing = true;
     try {

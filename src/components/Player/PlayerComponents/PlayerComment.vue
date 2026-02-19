@@ -22,7 +22,7 @@
             : musicStore.playSong.name
         }}</span>
         <span class="artist text-hidden">
-          {{
+          {{ 
             Array.isArray(musicStore.playSong.artists)
               ? musicStore.playSong.artists.map((item) => item.name).join(" / ")
               : String(musicStore.playSong.artists)
@@ -43,6 +43,29 @@
         </n-flex>
       </div>
     </n-flex>
+    <!-- 评论输入框 -->
+    <div class="comment-input-container">
+      <n-input
+        v-model:value="commentContent"
+        type="textarea"
+        placeholder="写下你的评论..."
+        :autosize="{ minRows: 1, maxRows: 3 }"
+        class="comment-input"
+      />
+      <n-button
+        type="primary"
+        size="small"
+        :disabled="!commentContent.trim() || sendingComment"
+        @click="handleSendComment"
+        class="send-button"
+      >
+        <template #icon>
+          <SvgIcon name="Send" v-if="!sendingComment" />
+          <n-spin v-else :size="16" />
+        </template>
+        发送
+      </n-button>
+    </div>
     <n-scrollbar ref="commentScroll" class="comment-scroll">
       <template v-if="filteredCommentHotData && filteredCommentHotData.length > 0">
         <div class="placeholder">
@@ -82,10 +105,10 @@
 <script setup lang="ts">
 import type { CommentType } from "@/types/main";
 import { useMusicStore, useStatusStore, useSettingStore } from "@/stores";
-import { getComment, getHotComment } from "@/api/comment";
+import { getComment, getHotComment, sendComment } from "@/api/comment";
 import { isEmpty } from "lodash-es";
 import { formatCommentList, removeBrackets } from "@/utils/format";
-import { NScrollbar } from "naive-ui";
+import { NScrollbar, NSpin } from "naive-ui";
 import { coverLoaded } from "@/utils/helper";
 import { openExcludeComment } from "@/utils/modal";
 
@@ -112,6 +135,10 @@ const commentData = ref<CommentType[]>([]);
 const commentHotData = ref<CommentType[] | null>([]);
 const commentPage = ref<number>(1);
 const commentHasMore = ref<boolean>(true);
+
+// 评论输入
+const commentContent = ref<string>("");
+const sendingComment = ref<boolean>(false);
 
 // 过滤后的数据
 const filterComments = (comments: CommentType[] | null) => {
@@ -144,6 +171,50 @@ const filterComments = (comments: CommentType[] | null) => {
 
 const filteredCommentData = computed(() => filterComments(commentData.value));
 const filteredCommentHotData = computed(() => filterComments(commentHotData.value));
+
+// 发送评论
+const handleSendComment = async () => {
+  // 检查歌曲 ID 是否有效
+  if (!songId.value || typeof songId.value !== "number") {
+    window.$message.error("无法发送评论，歌曲信息无效");
+    return;
+  }
+
+  // 检查评论内容
+  const content = commentContent.value.trim();
+  if (!content) {
+    window.$message.warning("请输入评论内容");
+    return;
+  }
+
+  try {
+    sendingComment.value = true;
+    // 调用发送评论 API
+    await sendComment(
+      songId.value as number,
+      content,
+      songType.value,
+      1 // 1: 发送
+    );
+    
+    // 发送成功
+    window.$message.success("评论发送成功");
+    commentContent.value = "";
+    
+    // 刷新评论列表
+    commentData.value = [];
+    commentHotData.value = [];
+    commentPage.value = 1;
+    commentHasMore.value = true;
+    getHotCommentData();
+    getAllComment();
+  } catch (error) {
+    console.error("发送评论失败:", error);
+    window.$message.error("评论发送失败，请稍后重试");
+  } finally {
+    sendingComment.value = false;
+  }
+};
 
 // 获取热门评论
 const getHotCommentData = async () => {
@@ -270,6 +341,46 @@ onMounted(() => {
         &:hover {
           background-color: rgba(var(--main-cover-color), 0.29);
         }
+      }
+    }
+  }
+  
+  .comment-input-container {
+    margin: 0 60px 20px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    .comment-input {
+      flex: 1;
+      border-radius: 8px;
+      background-color: rgba(var(--main-cover-color), 0.08);
+      :deep(.n-input__textarea-wrapper) {
+        border-radius: 8px;
+      }
+      :deep(.n-input__textarea) {
+        background-color: transparent;
+        color: rgb(var(--main-cover-color));
+        resize: none;
+      }
+      :deep(.n-input__border) {
+        border-color: rgba(var(--main-cover-color), 0.2);
+      }
+    }
+    .send-button {
+      height: 32px;
+      border-radius: 8px;
+      background-color: rgba(var(--main-cover-color), 0.2);
+      color: rgb(var(--main-cover-color));
+      border: none;
+      &:hover {
+        background-color: rgba(var(--main-cover-color), 0.3);
+      }
+      &:active {
+        background-color: rgba(var(--main-cover-color), 0.15);
+      }
+      &:disabled {
+        background-color: rgba(var(--main-cover-color), 0.1);
+        color: rgba(var(--main-cover-color), 0.5);
       }
     }
   }

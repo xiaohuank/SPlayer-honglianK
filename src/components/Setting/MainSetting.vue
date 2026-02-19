@@ -117,10 +117,10 @@
             :groups="networkConfig.groups"
             :highlight-key="highlightKey"
           />
-          <!-- 红联K -->
-          <HongLianKSetting v-else-if="activeKey === 'hongliank'" />
           <!-- 关于 -->
           <AboutSetting v-else-if="activeKey === 'about'" />
+          <!-- 红联K设置 -->
+          <HongLianKSetting v-else-if="activeKey === 'hongliank'" />
           <!-- 空白 -->
           <n-text v-else class="error">暂无该设置项</n-text>
         </Transition>
@@ -340,15 +340,15 @@ const menuOptions: MenuOption[] = [
     icon: renderIcon("Link"),
   },
   {
-          key: "hongliank",
-          label: "红联K",
-          icon: renderIcon("Extension"),
-        },
-        {
-          key: "about",
-          label: "关于与鸣谢",
-          icon: renderIcon("Info"),
-        },
+    key: "hongliank",
+    label: "红联K设置",
+    icon: renderIcon("Link"),
+  },
+  {
+    key: "about",
+    label: "关于与鸣谢",
+    icon: renderIcon("Info"),
+  },
 ];
 
 // 跳转

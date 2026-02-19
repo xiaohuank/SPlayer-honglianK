@@ -9,12 +9,14 @@ const config: Configuration = {
   // 构建资源所在的目录
   directories: {
     buildResources: "build",
+    output: "build-output-fixed",
   },
   // 包含在最终应用程序构建中的文件列表
   // 使用通配符 ! 表示排除不需要的文件
   files: [
     "public/**",
     "out/**",
+    "native/**",
     "!**/.vscode/*",
     "!src/*",
     "!electron.vite.config.{js,ts,mjs,cjs}",
@@ -49,7 +51,7 @@ const config: Configuration = {
     // Windows 平台全局文件名模板
     artifactName: "${productName}-${version}-${arch}.${ext}",
     // 是否对可执行文件进行签名和编辑
-    // signAndEditExecutable: false,
+    signAndEditExecutable: false,
     // 构建类型（架构由命令行参数 --x64 或 --arm64 指定）
     target: [
       // 安装版

@@ -244,7 +244,7 @@ export const useLocalSettings = (): SettingConfig => {
         ],
       },
       {
-        title: "本地与缓存",
+        title: "缓存配置",
         items: [
           {
             key: "cacheEnabled",
@@ -286,22 +286,6 @@ export const useLocalSettings = (): SettingConfig => {
             condition: () => settingStore.cacheEnabled,
           },
           {
-            key: "downloadPath",
-            label: "下载保存位置",
-            type: "button",
-            description: computed(() => settingStore.downloadPath || "若不设置则无法进行下载"),
-            buttonLabel: "更改",
-            action: chooseDownloadPath,
-            extraButton: {
-              label: "清除选择",
-              type: "primary",
-              secondary: true,
-              strong: true,
-              action: () => (settingStore.downloadPath = ""),
-              show: computed(() => !!settingStore.downloadPath),
-            },
-          },
-          {
             key: "clearCache",
             label: "缓存占用与清理",
             type: "button",
@@ -315,7 +299,22 @@ export const useLocalSettings = (): SettingConfig => {
       {
         title: "下载配置",
         items: [
-
+          {
+            key: "downloadPath",
+            label: "默认下载目录",
+            type: "button",
+            description: computed(() => settingStore.downloadPath || "若不设置则无法进行下载"),
+            buttonLabel: "更改",
+            action: chooseDownloadPath,
+            extraButton: {
+              label: "清除选择",
+              type: "primary",
+              secondary: true,
+              strong: true,
+              action: () => (settingStore.downloadPath = ""),
+              show: computed(() => !!settingStore.downloadPath),
+            },
+          },
           {
             key: "enableDownloadHttp2",
             label: "启用 HTTP/2 下载",
@@ -373,10 +372,22 @@ export const useLocalSettings = (): SettingConfig => {
             }),
           },
           {
+            key: "downloadAnimatedCover",
+            label: "同时下载动态封面",
+            type: "switch",
+            description: "下载歌曲时同时下载动态封面（如果可用）",
+            disabled: computed(() => !settingStore.downloadMeta || !settingStore.downloadCover),
+            value: computed({
+              get: () => settingStore.downloadAnimatedCover,
+              set: (v) => (settingStore.downloadAnimatedCover = v),
+            }),
+          },
+          {
             key: "downloadLyric",
             label: "同时下载歌词",
             type: "switch",
             description: "下载歌曲时同时下载歌词",
+            disabled: computed(() => !settingStore.downloadMeta),
             value: computed({
               get: () => settingStore.downloadLyric,
               set: (v) => (settingStore.downloadLyric = v),

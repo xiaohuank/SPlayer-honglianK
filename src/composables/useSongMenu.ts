@@ -1,4 +1,5 @@
 import { DropdownOption } from "naive-ui";
+import { useRouter } from "vue-router";
 import { SongType } from "@/types/main";
 import {
   useStatusStore,
@@ -155,7 +156,6 @@ export const useSongMenu = () => {
     playListId: number = 0,
     isDailyRecommend: boolean = false,
     emit: (event: "removeSong", args: any[]) => void,
-    allSongs?: SongType[],
   ): DropdownOption[] => {
     const userPlaylistsData = dataStore.userLikeData.playlists?.filter(
       (pl) => pl.userId === dataStore.userData.userId,
@@ -381,7 +381,7 @@ export const useSongMenu = () => {
         key: "download",
         label: "下载歌曲",
         show:
-          settingStore.contextMenuOptions.download &&
+          (settingStore.contextMenuOptions?.download ?? true) &&
           !isLocal &&
           type === "song" &&
           !isDownloading,
@@ -389,71 +389,33 @@ export const useSongMenu = () => {
         icon: renderIcon("Download"),
       },
       {
-        key: "download-high-quality",
+        key: "download-hq",
         label: "下载高质量版本",
         show:
-          settingStore.contextMenuOptions.download &&
+          (settingStore.contextMenuOptions?.download ?? true) &&
           !isLocal &&
           type === "song" &&
           !isDownloading,
-        props: {
-          onClick: () => {
-            // 直接使用最高音质下载
-            downloadManager.addDownload(song, 'hires' as any);
-            window.$message.info(`开始下载 ${song.name} 的高质量版本`);
-          },
-        },
-        icon: renderIcon("Quality"),
+        props: { onClick: () => openDownloadSong(song) },
+        icon: renderIcon("HiRes"),
       },
       {
         key: "download-album",
         label: "下载专辑",
         show:
-          !!(
-            settingStore.contextMenuOptions.download &&
+            (settingStore.contextMenuOptions?.download ?? true) &&
             !isLocal &&
             type === "song" &&
             !isDownloading &&
-            song.album && typeof song.album !== 'string' && song.album.id
-          ),
-        props: {
-          onClick: () => {
-            window.$message.info(`开始下载专辑 ${typeof song.album === 'string' ? song.album : song.album?.name}`);
-            // 这里可以实现下载整个专辑的逻辑
-          },
-        },
+            typeof song.album !== "string" && !!song.album?.id,
+        props: { onClick: () => downloadManager.downloadAlbum() },
         icon: renderIcon("Album"),
-      },
-      {
-        key: "batch-download",
-        label: "批量下载当前歌单",
-        show:
-          settingStore.contextMenuOptions.batchDownload &&
-          allSongs &&
-          allSongs.length > 1 &&
-          type === "song",
-        props: {
-          onClick: async () => {
-            if (allSongs) {
-              window.$message.info(`开始批量下载 ${allSongs.length} 首歌曲`);
-              
-              for (const s of allSongs) {
-                if (!s.path && s.type === 'song') {
-                  await openDownloadSong(s);
-                }
-              }
-              
-              window.$message.success(`批量下载任务已添加`);
-            }
-          },
-        },
-        icon: renderIcon("Batch"),
       },
       {
         key: "retry-download",
         label: "重试下载",
         show:
-          settingStore.contextMenuOptions.download && isDownloading,
+          (settingStore.contextMenuOptions?.download ?? true) && isDownloading,
         props: { onClick: () => downloadManager.retryDownload(song.id) },
         icon: renderIcon("Refresh"),
       },

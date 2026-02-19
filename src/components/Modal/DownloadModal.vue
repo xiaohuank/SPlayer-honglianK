@@ -52,6 +52,12 @@
             </n-button>
           </n-input-group>
         </n-collapse-item>
+        <n-collapse-item title="附加选项" name="options">
+          <n-checkbox v-model:checked="downloadOptions.downloadMeta" label="下载歌曲元信息" />
+          <n-checkbox v-model:checked="downloadOptions.downloadCover" :disabled="!downloadOptions.downloadMeta" label="同时下载封面" />
+          <n-checkbox v-model:checked="downloadOptions.downloadAnimatedCover" :disabled="!downloadOptions.downloadMeta || !downloadOptions.downloadCover" label="同时下载动态封面" />
+          <n-checkbox v-model:checked="downloadOptions.downloadLyric" :disabled="!downloadOptions.downloadMeta" label="同时下载歌词" />
+        </n-collapse-item>
       </n-collapse>
       <template v-if="isBatch">
         <n-text depth="3" style="font-size: 12px; margin-top: 12px; display: block">
@@ -102,6 +108,13 @@ const isCloudSong = computed(() => songs.value.some((song) => song.pc));
 const selectedQuality = ref<SongLevelType>(props.quality || settingStore.downloadSongLevel || "h");
 const downloadPath = computed(() => settingStore.downloadPath);
 
+const downloadOptions = ref({
+  downloadMeta: settingStore.downloadMeta,
+  downloadCover: settingStore.downloadCover,
+  downloadAnimatedCover: settingStore.downloadAnimatedCover,
+  downloadLyric: settingStore.downloadLyric
+});
+
 // 是否可以下载（需要配置下载目录）
 const canDownload = computed(() => {
   if (!isElectron) return true;
@@ -143,27 +156,33 @@ const getSongDetail = async () => {
 };
 
 // 确认下载
-const handleConfirm = () => {
-  if (!canDownload.value) {
-    window.$message.warning("请先配置下载目录");
-    return;
-  }
+  const handleConfirm = () => {
+    if (!canDownload.value) {
+      window.$message.warning("请先配置下载目录");
+      return;
+    }
 
-  if (songs.value.length === 0) {
-    window.$message.warning("没有可下载的歌曲");
-    return;
-  }
+    if (songs.value.length === 0) {
+      window.$message.warning("没有可下载的歌曲");
+      return;
+    }
 
-  // 添加到下载队列
-  songs.value.forEach((song) => {
-    downloadManager.addDownload(song, selectedQuality.value);
-  });
+    // 添加到下载队列
+    songs.value.forEach((song) => {
+      downloadManager.addDownload(song, selectedQuality.value, {
+        downloadMeta: downloadOptions.value.downloadMeta,
+        downloadCover: downloadOptions.value.downloadCover,
+        downloadAnimatedCover: downloadOptions.value.downloadAnimatedCover,
+        downloadLyric: downloadOptions.value.downloadLyric,
+        saveMetaFile: settingStore.saveMetaFile
+      });
+    });
 
-  emit("close");
-  window.$message.success(
-    isBatch.value ? `已添加 ${songs.value.length} 首歌曲到下载队列` : "已添加到下载队列",
-  );
-};
+    emit("close");
+    window.$message.success(
+      isBatch.value ? `已添加 ${songs.value.length} 首歌曲到下载队列` : "已添加到下载队列",
+    );
+  };
 
 // 取消
 const cancel = () => {

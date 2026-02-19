@@ -68,6 +68,17 @@ export interface SettingState {
   taskbarLyricFontWeight: number;
   /** 是否使用在线服务 */
   useOnlineService: boolean;
+  /** 外部歌词显示协议支持 */
+  externalLyricProtocol: {
+    /** 是否启用 */
+    enabled: boolean;
+    /** KDE Connect 支持 */
+    kdeConnect: boolean;
+    /** 蓝牙歌词支持 */
+    bluetooth: boolean;
+    /** WiFi 歌词支持 */
+    wifi: boolean;
+  };
   /** 启动时检查更新 */
   checkUpdateOnStart: boolean;
   /** 隐藏 VIP 标签 */
@@ -126,6 +137,8 @@ export interface SettingState {
   downloadMeta: boolean;
   /** 下载封面 */
   downloadCover: boolean;
+  /** 下载动态封面 */
+  downloadAnimatedCover: boolean;
   /** 下载歌词 */
   downloadLyric: boolean;
   /** 下载歌词翻译 */
@@ -247,6 +260,8 @@ export interface SettingState {
   localLyricQQMusicMatch: boolean;
   /** AMLL DB 服务地址 */
   amllDbServer: string;
+  /** 启用用户歌词源 */
+  enableUserLyricSources: boolean;
   /** 菜单显示封面 */
   menuShowCover: boolean;
   /** 菜单展开项 */
@@ -350,10 +365,6 @@ export interface SettingState {
   showSongOperations: boolean;
   /** 显示歌曲歌手 */
   showSongArtist: boolean;
-  /** API 配置 */
-  neteaseApi: string;
-  kugouApi: string;
-  qqApi: string;
   /** 侧边栏隐藏 */
   sidebarHide: {
     /** 隐藏发现音乐 */
@@ -372,6 +383,10 @@ export interface SettingState {
     hideLocal: boolean;
     /** 隐藏最近播放 */
     hideHistory: boolean;
+    /** 隐藏私信 */
+    hideMessage: boolean;
+    /** 隐藏一起听 */
+    hideListenTogether: boolean;
     /** 隐藏创建的歌单 */
     hideUserPlaylists: boolean;
     /** 隐藏收藏的歌单 */
@@ -416,7 +431,6 @@ export interface SettingState {
     wiki: boolean;
     search: boolean;
     download: boolean;
-    batchDownload: boolean;
     copyName: boolean;
     musicTagEditor: boolean;
   };
@@ -487,6 +501,35 @@ export interface SettingState {
       /** 是否启用 */
       enabled: boolean;
     };
+  };
+  /** 音乐API配置 */
+  neteaseApi: string;
+  kugouApi: string;
+  qqApi: string;
+  /** 备用网易云API配置 */
+  extraApi: string;
+  /** 优先搜索源 */
+  prioritySearchSource: 'official' | 'user' | 'extra' | 'auto';
+  /** 资源源设置 */
+  resourceSources: {
+    /** 下载源 */
+    download: 'official' | 'user' | 'auto';
+    /** 播放源 */
+    playback: 'official' | 'user' | 'auto';
+    /** 歌词源 */
+    lyric: 'official' | 'user' | 'auto';
+    /** 封面源 */
+    cover: 'official' | 'user' | 'auto';
+    /** 歌单源 */
+    playlist: 'official' | 'user' | 'auto';
+    /** 评论源 */
+    comment: 'official' | 'user' | 'auto';
+    /** MV视频源 */
+    mv: 'official' | 'user' | 'auto';
+    /** 用户源 */
+    user: 'official' | 'user' | 'auto';
+    /** 消息源 */
+    message: 'official' | 'user' | 'auto';
   };
 }
 
@@ -582,6 +625,7 @@ export const useSettingStore = defineStore("setting", {
     lyricPriority: "auto",
     localLyricQQMusicMatch: false,
     amllDbServer: defaultAMLLDbServer,
+    enableUserLyricSources: false,
     showYrc: true,
     showTran: true,
     showRoma: true,
@@ -637,6 +681,7 @@ export const useSettingStore = defineStore("setting", {
     folderStrategy: "none",
     downloadMeta: true,
     downloadCover: true,
+    downloadAnimatedCover: false,
     downloadLyric: true,
     downloadLyricTranslation: true,
     downloadLyricRomaji: false,
@@ -664,9 +709,6 @@ export const useSettingStore = defineStore("setting", {
     showSongDuration: true,
     showSongOperations: true,
     showSongArtist: true,
-    neteaseApi: '',
-    kugouApi: '',
-    qqApi: '',
     sidebarHide: {
       hideDiscover: false,
       hidePersonalFM: false,
@@ -676,6 +718,8 @@ export const useSettingStore = defineStore("setting", {
       hideDownload: false,
       hideLocal: false,
       hideHistory: false,
+      hideMessage: false,
+      hideListenTogether: false,
       hideUserPlaylists: false,
       hideLikedPlaylists: false,
       hideHeartbeatMode: false,
@@ -713,7 +757,6 @@ export const useSettingStore = defineStore("setting", {
       wiki: true,
       search: true,
       download: true,
-      batchDownload: true,
       copyName: true,
       musicTagEditor: true,
     },
@@ -762,6 +805,46 @@ export const useSettingStore = defineStore("setting", {
         enabled: false,
       },
     },
+    /** 音乐API配置 */
+    neteaseApi: '',
+    kugouApi: '',
+    qqApi: '',
+    /** 备用网易云API配置 */
+    extraApi: '',
+    /** 优先搜索源 */
+    prioritySearchSource: 'auto',
+    /** 资源源设置 */
+    resourceSources: {
+      /** 下载源 */
+      download: 'auto',
+      /** 播放源 */
+      playback: 'auto',
+      /** 歌词源 */
+      lyric: 'auto',
+      /** 封面源 */
+      cover: 'auto',
+      /** 歌单源 */
+      playlist: 'auto',
+      /** 评论源 */
+      comment: 'auto',
+      /** MV视频源 */
+      mv: 'auto',
+      /** 用户源 */
+      user: 'auto',
+      /** 消息源 */
+      message: 'auto'
+    },
+    /** 外部歌词显示协议支持 */
+    externalLyricProtocol: {
+      /** 是否启用 */
+      enabled: false,
+      /** KDE Connect 支持 */
+      kdeConnect: false,
+      /** 蓝牙歌词支持 */
+      bluetooth: false,
+      /** WiFi 歌词支持 */
+      wifi: false
+    }
   }),
   getters: {
     /**

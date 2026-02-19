@@ -141,10 +141,10 @@ export class SocketService {
     const store = useStore();
     try {
       const websocketConfig = store.get("websocket");
-      if (!websocketConfig?.enabled) return;
-      const { port } = await this.start(websocketConfig.port, false);
-      socketLog.info(`🔌 Auto-start WebSocket server on port ${port}`);
-      store.set("websocket", { enabled: true, port });
+      const port = websocketConfig?.port || 25885;
+      const { port: actualPort } = await this.start(port, false);
+      socketLog.info(`🔌 Auto-start WebSocket server on port ${actualPort}`);
+      store.set("websocket", { enabled: true, port: actualPort });
     } catch (error) {
       socketLog.error("❌ Error while auto-starting WebSocket server from store:", error);
       store.set("websocket.enabled", false);
@@ -302,6 +302,7 @@ export class SocketService {
       });
     }
   }
+
 
   /**
    * 处理获取当前播放信息请求

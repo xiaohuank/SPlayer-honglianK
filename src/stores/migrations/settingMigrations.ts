@@ -108,6 +108,8 @@ export const settingMigrations: Record<number, MigrationFunction> = {
         hideDownload: oldState.hideDownload || false,
         hideLocal: oldState.hideLocal || false,
         hideHistory: oldState.hideHistory || false,
+        hideMessage: false,
+        hideListenTogether: false,
         hideUserPlaylists: oldState.hideUserPlaylists || false,
         hideLikedPlaylists: oldState.hideLikedPlaylists || false,
         hideHeartbeatMode: oldState.hideHeartbeatMode || false,

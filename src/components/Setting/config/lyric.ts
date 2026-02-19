@@ -792,6 +792,54 @@ export const useLyricSettings = (): SettingConfig => {
         ],
       },
       {
+        title: "外部歌词显示",
+        show: isElectron,
+        items: [
+          {
+            key: "externalLyricProtocolEnabled",
+            label: "启用外部歌词显示协议",
+            type: "switch",
+            description: "开启后支持通过蓝牙、WiFi等协议显示歌词",
+            value: computed({
+              get: () => settingStore.externalLyricProtocol.enabled,
+              set: (v) => (settingStore.externalLyricProtocol.enabled = v),
+            }),
+            children: [
+              {
+                key: "externalLyricProtocolKDEConnect",
+                label: "KDE Connect 支持",
+                type: "switch",
+                description: "通过 KDE Connect 显示歌词",
+                value: computed({
+                  get: () => settingStore.externalLyricProtocol.kdeConnect,
+                  set: (v) => (settingStore.externalLyricProtocol.kdeConnect = v),
+                }),
+              },
+              {
+                key: "externalLyricProtocolBluetooth",
+                label: "蓝牙歌词支持",
+                type: "switch",
+                description: "通过蓝牙协议显示歌词",
+                value: computed({
+                  get: () => settingStore.externalLyricProtocol.bluetooth,
+                  set: (v) => (settingStore.externalLyricProtocol.bluetooth = v),
+                }),
+              },
+              {
+                key: "externalLyricProtocolWiFi",
+                label: "WiFi 歌词支持",
+                type: "switch",
+                description: "通过 WiFi 协议显示歌词",
+                value: computed({
+                  get: () => settingStore.externalLyricProtocol.wifi,
+                  set: (v) => (settingStore.externalLyricProtocol.wifi = v),
+                }),
+              },
+            ],
+          },
+        ],
+      },
+      {
         title: "任务栏歌词",
         show: isElectron && isWin,
         items: [

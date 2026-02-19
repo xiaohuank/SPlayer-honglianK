@@ -3,12 +3,12 @@ import { isDev } from "../main/utils/config";
 import { serverLog } from "../main/logger";
 import { initNcmAPI } from "./netease";
 import { initUnblockAPI } from "./unblock";
-import { initControlAPI } from "./control";
 import { initQQMusicAPI } from "./qqmusic";
 import fastifyCookie from "@fastify/cookie";
 import fastifyMultipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import fastify from "fastify";
+import getPort from "get-port";
 
 const initAppServer = async () => {
   try {
@@ -44,10 +44,6 @@ const initAppServer = async () => {
             url: "/api/unblock",
           },
           {
-            name: "ControlAPI",
-            url: "/api/control",
-          },
-          {
             name: "QQMusicAPI",
             url: "/api/qqmusic",
           },
@@ -57,10 +53,14 @@ const initAppServer = async () => {
     // 注册接口
     server.register(initNcmAPI, { prefix: "/api" });
     server.register(initUnblockAPI, { prefix: "/api" });
-    server.register(initControlAPI, { prefix: "/api" });
     server.register(initQQMusicAPI, { prefix: "/api" });
     // 启动端口
-    const port = Number(process.env["VITE_SERVER_PORT"] || 25884);
+    const defaultPort = Number(process.env["VITE_SERVER_PORT"] || 25884);
+    // 检测端口占用并自动切换
+    const port = await getPort({ port: defaultPort });
+    if (port !== defaultPort) {
+      serverLog.warn(`⚠️  Port ${defaultPort} is occupied, using port ${port} instead`);
+    }
     await server.listen({ port, host: "127.0.0.1" });
     serverLog.info(`🌐 Starting AppServer on port ${port}`);
     return server;

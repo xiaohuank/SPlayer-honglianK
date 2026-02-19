@@ -38,6 +38,7 @@ import {
   type MenuInst,
   type MenuOption,
   NAvatar,
+  NBadge,
   NButton,
   NEllipsis,
   NText,
@@ -170,8 +171,16 @@ const menuOptions = computed<MenuOption[] | MenuGroupOption[]>(() => {
         },
         {
           key: "download",
-          link: "download",
-          label: "下载管理",
+          label: () =>
+            h(
+              NBadge,
+              {
+                show: dataStore.downloadingSongs.length > 0,
+                value: dataStore.downloadingSongs.length,
+                offset: [22, 13],
+              },
+              () => "下载管理",
+            ),
           show: isElectron && !settingStore.sidebarHide.hideDownload,
           icon: renderIcon("Download"),
         },
@@ -195,6 +204,13 @@ const menuOptions = computed<MenuOption[] | MenuGroupOption[]>(() => {
           label: "最近播放",
           show: !settingStore.sidebarHide.hideHistory,
           icon: renderIcon("History"),
+        },
+        {
+          key: "message",
+          link: "message",
+          label: "私信",
+          show: isLogin() === 1 && !settingStore.sidebarHide.hideMessage,
+          icon: renderIcon("Message"),
         },
         {
           key: "divider-two",
@@ -238,7 +254,7 @@ const menuOptions = computed<MenuOption[] | MenuGroupOption[]>(() => {
                 strong: true,
                 secondary: true,
                 renderIcon: renderIcon("Add"),
-                onClick: (event: Event) => {
+                onclick: (event: Event) => {
                   event.stopPropagation();
                   openCreatePlaylist(statusStore.playlistMode === "local");
                 },
@@ -308,7 +324,7 @@ const menuOptions = computed<MenuOption[] | MenuGroupOption[]>(() => {
                 strong: true,
                 secondary: true,
                 renderIcon: renderIcon("Add"),
-                onClick: (event: Event) => {
+                onclick: (event: Event) => {
                   event.stopPropagation();
                   openCreatePlaylist(true);
                 },
@@ -380,11 +396,9 @@ const localPlaylistMenu = computed<MenuOption[]>(() => {
 const renderMenuLabel = (option: MenuOption) => {
   // 路由链接
   if ("link" in option) {
-    return h(RouterLink, { to: { name: option.link as string } }, {
-      default: () => typeof option.label === "function" ? option.label() : option.label
-    });
+    return h(RouterLink, { to: { name: option.link as string } }, () => option.label as string);
   }
-  return typeof option.label === "function" ? option.label() : option.label;
+  return typeof option.label === "function" ? option.label() : (option.label as string);
 };
 
 // 菜单项更改
@@ -438,10 +452,6 @@ const menuUpdate = (key: string, item: MenuOption) => {
         });
         break;
       default:
-        // 处理普通路由链接
-        if ("link" in item) {
-          router.push({ name: item.link as string });
-        }
         break;
     }
   }

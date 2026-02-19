@@ -7,6 +7,7 @@ import { NA } from "naive-ui";
 import { disableDiscordRpc, enableDiscordRpc, updateDiscordConfig } from "@/core/player/PlayerIpc";
 import { getAuthToken, getAuthUrl, getSession } from "@/api/lastfm";
 import StreamingServerList from "../components/StreamingServerList.vue";
+import NetworkTester from "../components/NetworkTester.vue";
 
 export const useNetworkSettings = (): SettingConfig => {
   const settingStore = useSettingStore();
@@ -542,6 +543,19 @@ export const useNetworkSettings = (): SettingConfig => {
             show: computed(() => socketPort.value !== socketPortSaved.value),
             action: testSocketPort,
             componentProps: { type: "primary" },
+          },
+        ],
+      },
+      {
+        title: "网络检测",
+        items: [
+          {
+            key: "network_tester",
+            label: "网络连接检测",
+            type: "custom",
+            description: "测试网络连接状态和响应时间",
+            noWrapper: true,
+            component: markRaw(NetworkTester),
           },
         ],
       },

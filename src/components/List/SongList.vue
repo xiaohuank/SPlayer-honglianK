@@ -2,6 +2,7 @@
 <template>
   <Transition name="fade" mode="out-in">
     <div v-if="!isEmpty(listData)" ref="songListRef" class="song-list">
+
       <Transition name="fade" mode="out-in">
         <div
           :key="listKey"
@@ -13,7 +14,9 @@
         >
           <!-- 悬浮顶栏 -->
           <div class="list-header song-card sticky-header">
-            <n-text class="num">#</n-text>
+            <div class="num">
+              #
+            </div>
             <n-popover
               v-if="!disabledSort"
               trigger="click"
@@ -81,6 +84,19 @@
             <n-text v-if="data?.[0].size && !hiddenSize && !isSmallScreen" class="meta size">
               大小
             </n-text>
+            <div class="random-play">
+              <n-button 
+                quaternary 
+                circle 
+                size="small" 
+                @click="handleRandomPlay"
+                title="随机播放"
+              >
+                <template #icon>
+                  <SvgIcon name="Shuffle" />
+                </template>
+              </n-button>
+            </div>
           </div>
           <!-- 虚拟列表 -->
           <VirtualScroll
@@ -232,6 +248,17 @@ const handleSongPlay = (song: SongType) => {
     player.addNextSong(song, true);
   } else {
     player.updatePlayList(listData.value, song, props.playListId);
+  }
+};
+
+
+
+// 随机播放
+const handleRandomPlay = () => {
+  // 随机打乱列表数据
+  const shuffledList = [...listData.value].sort(() => Math.random() - 0.5);
+  if (shuffledList.length > 0) {
+    player.updatePlayList(shuffledList, shuffledList[0], props.playListId);
   }
 };
 
@@ -486,6 +513,19 @@ onBeforeUnmount(() => {
     padding-bottom: 12px;
     // padding-right: 4px;
   }
+  // 批量操作栏
+  .batch-operation-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background-color: rgba(var(--primary), 0.08);
+    border-bottom: 1px solid rgba(var(--primary), 0.12);
+    .selected-count {
+      font-size: 14px;
+      font-weight: 500;
+    }
+  }
   // 悬浮顶栏
   .list-header {
     width: 100%;
@@ -566,6 +606,9 @@ onBeforeUnmount(() => {
       &.date {
         width: 80px;
       }
+    }
+    .random-play {
+      margin-left: 12px;
     }
   }
   .virtual-list-wrapper {

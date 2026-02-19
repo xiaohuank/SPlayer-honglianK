@@ -457,7 +457,7 @@ export const useDataStore = defineStore("data", {
     ) {
       const item = this.downloadingSongs.find((item) => item.song.id === songId);
       if (item) {
-        item.progress = progress;
+        item.progress = Math.max(0, Math.min(100, progress));
         item.transferred = transferred;
         item.totalSize = totalSize;
         // 进度更新过于频繁，不需要强制更新整个数组，以免影响性能

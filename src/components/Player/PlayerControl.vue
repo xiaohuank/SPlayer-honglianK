@@ -27,18 +27,6 @@
           >
             <SvgIcon name="AddList" />
           </div>
-          <!-- 下载 -->
-          <div
-            class="menu-icon"
-            v-if="
-              !musicStore.playSong.path &&
-              statusStore.isDeveloperMode &&
-              settingStore.fullscreenPlayerElements.download
-            "
-            @click.stop="openDownloadSong(musicStore.playSong)"
-          >
-            <SvgIcon name="Download" />
-          </div>
           <!-- 显示评论 -->
           <div
             v-if="
@@ -50,6 +38,17 @@
             @click.stop="statusStore.showPlayerComment = !statusStore.showPlayerComment"
           >
             <SvgIcon :depth="statusStore.showPlayerComment ? 1 : 3" name="Message" />
+          </div>
+          <!-- 下载 -->
+          <div
+            class="menu-icon"
+            v-if="
+              !musicStore.playSong.path &&
+              settingStore.fullscreenPlayerElements.download
+            "
+            @click.stop="openDownloadSong(musicStore.playSong)"
+          >
+            <SvgIcon name="Download" />
           </div>
         </n-flex>
         <div class="center">

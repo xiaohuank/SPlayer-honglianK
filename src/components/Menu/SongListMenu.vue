@@ -19,7 +19,6 @@ import { NFlex, NText, type DropdownOption } from "naive-ui";
 import { getPlayerInfoObj } from "@/utils/format";
 import SImage from "../UI/s-image.vue";
 import { useSongMenu } from "@/composables/useSongMenu";
-
 const props = defineProps<{ hiddenCover?: boolean }>();
 const emit = defineEmits<{ removeSong: [index: number[]] }>();
 
@@ -52,7 +51,6 @@ const openDropdown = (
       playListId || 0,
       isDailyRecommend,
       (event, args) => emit(event, args),
-      _data,
     );
     // 头部信息
     const headerOption: DropdownOption = {
@@ -99,6 +97,7 @@ const openDropdown = (
           },
         ),
     };
+
     nextTick().then(() => {
       dropdownOptions.value = [
         headerOption,

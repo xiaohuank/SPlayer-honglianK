@@ -12,15 +12,22 @@
           <div class="avatar">
             <n-image
               :src="
-                item.user?.avatarUrl &&
-                item.user.avatarUrl.replace(/^http:/, 'https:') + '?param=100y100'
+                item.user?.avatarUrl
+                  ? item.user.avatarUrl.replace(/^http:/, 'https:') + '?param=100y100'
+                  : '/images/avatar.jpg?asset'
               "
               class="cover"
               preview-disabled
               lazy
               @load="coverLoaded"
+              @error="(e) => { (e.target as HTMLImageElement).src = '/images/avatar.jpg?asset'; }"
             >
               <template #placeholder>
+                <div class="cover-loading">
+                  <img src="/images/avatar.jpg?asset" class="loading-img" alt="loading-img" />
+                </div>
+              </template>
+              <template #error>
                 <div class="cover-loading">
                   <img src="/images/avatar.jpg?asset" class="loading-img" alt="loading-img" />
                 </div>
@@ -154,10 +161,10 @@ const likeComment = debounce(async (data: CommentType) => {
   // 是否点赞
   const isLiked = data.liked;
   // 点赞或取消
-  const result = await commentLike(data.id, isLiked ? 2 : 1, props.type);
+  const result = await commentLike(props.resId as number, isLiked ? 2 : 1, props.type, data.id);
   if (result.code === 200) {
     data.liked = !isLiked;
-    if (data.likedCount) data.likedCount += isLiked ? -1 : 1;
+    if (data.likedCount !== undefined) data.likedCount += isLiked ? -1 : 1;
   } else {
     window.$message.error(result.msg || "评论点赞失败");
   }

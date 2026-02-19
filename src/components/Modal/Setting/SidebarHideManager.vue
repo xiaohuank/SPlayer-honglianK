@@ -49,6 +49,8 @@ const sidebarItems: SidebarHideItem[] = [
   ...when(isElectron && statusStore.isDeveloperMode, { label: "下载管理", key: "hideDownload" }),
   ...when(isElectron, { label: "本地歌曲", key: "hideLocal" }),
   { label: "最近播放", key: "hideHistory" },
+  { label: "私信", key: "hideMessage" },
+  { label: "一起听", key: "hideListenTogether" },
   { label: "创建的歌单", key: "hideUserPlaylists" },
   { label: "收藏的歌单", key: "hideLikedPlaylists" },
   { label: "心动模式", key: "hideHeartbeatMode" },

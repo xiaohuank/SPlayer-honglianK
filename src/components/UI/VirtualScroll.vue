@@ -264,11 +264,23 @@ const processScroll = () => {
   if (!target) return;
 
   const { scrollTop: st, scrollHeight, clientHeight } = target;
-  scrollTop.value = st;
-  calculateVisibleRange(st);
+  
+  // 限制滚动范围，防止滚动到底部后还能继续下滑
+  const maxScrollTop = Math.max(0, scrollHeight - clientHeight);
+  const clampedScrollTop = Math.min(st, maxScrollTop);
+  
+  // 如果滚动位置被限制，手动设置滚动位置
+  if (clampedScrollTop !== st) {
+    target.scrollTop = clampedScrollTop;
+    scrollTop.value = clampedScrollTop;
+  } else {
+    scrollTop.value = st;
+  }
+  
+  calculateVisibleRange(scrollTop.value);
 
   // 触底检测
-  if (scrollHeight - st - clientHeight < 50) {
+  if (scrollHeight - scrollTop.value - clientHeight < 50) {
     emit("reachBottom");
   }
 };

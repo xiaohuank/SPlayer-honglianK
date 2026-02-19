@@ -54,14 +54,15 @@ const freqLabels = frequencies.map((f) => (f >= 1000 ? `${f / 1000}kHz` : `${f}H
 
 // 预设（单位 dB），范围建议在 [-12, 12]
 const presetList = {
-  acoustic: { label: "原声", bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
-  pop: { label: "流行", bands: [-1, -1, 0, 2, 4, 4, 2, 1, -1, 1] },
-  dance: { label: "舞曲", bands: [4, 6, 7, 0, 2, 3, 5, 4, 3, 0] },
-  rock: { label: "摇滚", bands: [5, 3, 3, 1, 0, -1, 0, 2, 3, 5] },
-  classical: { label: "古典", bands: [5, 4, 3, 2, -1, -1, 0, 2, 3, 5] },
-  jazz: { label: "爵士", bands: [3, 3, 2, 2, -1, -1, 0, 2, 2, 5] },
-  vocal: { label: "人声", bands: [-2, -1, 0, 2, 4, 4, 2, 0, -1, -2] },
-  bass: { label: "重低音", bands: [6, 6, 8, 2, 0, 0, 0, 0, 0, 0] },
+  flat: { label: "平直", bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  trebleBoost: { label: "高音增强", bands: [-2, -2, -2, -1, 0, 0, 1, 2, 3, 4] },
+  bassBoost: { label: "低音增强", bands: [4, 4, 3, 2, 1, 0, 0, 0, 0, 0] },
+  headphones: { label: "头戴式耳机", bands: [2, 2, 1, 0, 0, 0, 0, 1, 2, 2] },
+  laptop: { label: "笔记本电脑", bands: [3, 3, 2, 1, 0, 0, 1, 2, 3, 3] },
+  portableSpeaker: { label: "便携式扬声器", bands: [4, 4, 3, 2, 0, 0, 2, 3, 4, 4] },
+  homeStereo: { label: "家庭立体声", bands: [2, 2, 1, 0, 0, 0, 0, 1, 2, 2] },
+  tv: { label: "电视", bands: [1, 1, 0, -1, -1, -1, -1, 0, 1, 1] },
+  car: { label: "汽车", bands: [3, 3, 2, 1, 0, 0, 1, 2, 3, 3] },
   custom: { label: "自定义", bands: [] as number[] },
 } as const;
 

@@ -1,12 +1,22 @@
 <template>
   <div class="song-card">
     <div :class="['song-content', { play: musicStore.playSong.id === song.id }]">
-      <!-- 序号 -->
+      <!-- 序号/复选框 -->
       <div class="num" @dblclick.stop>
-        <n-text v-if="musicStore.playSong.id !== song.id" depth="3">
-          {{ index + 1 }}
-        </n-text>
-        <SvgIcon v-else :size="22" name="Music" />
+        <template v-if="showCheckbox">
+          <n-checkbox 
+            :checked="checked" 
+            @update:checked="(val) => emit('checkbox-change', val)" 
+            size="small" 
+            @click.stop
+          />
+        </template>
+        <template v-else>
+          <n-text v-if="musicStore.playSong.id !== song.id" depth="3">
+            {{ index + 1 }}
+          </n-text>
+          <SvgIcon v-else :size="22" name="Music" />
+        </template>
         <!-- 播放暂停 -->
         <SvgIcon
           :size="28"
@@ -174,15 +184,6 @@
           :size="20"
           @click.stop="toLikeSong(song, !dataStore.isLikeSong(song.id))"
           @delclick.stop
-          class="action-icon"
-        />
-        <!-- 下载歌曲 -->
-        <SvgIcon
-          v-if="!isSmallScreen && !song.path"
-          name="Download"
-          :size="20"
-          @click.stop="openDownloadSong(song)"
-          class="action-icon"
         />
         <!-- 移动端菜单 -->
         <SvgIcon v-else name="More" :size="20" @click.stop="emit('show-menu', $event)" />
@@ -211,7 +212,7 @@
 import { QualityType, type SongType } from "@/types/main";
 import { useStatusStore, useMusicStore, useDataStore, useSettingStore } from "@/stores";
 import { formatNumber, formatFileSize } from "@/utils/helper";
-import { openJumpArtist, openDownloadSong } from "@/utils/modal";
+import { openJumpArtist } from "@/utils/modal";
 import { removeBrackets } from "@/utils/format";
 import { toLikeSong } from "@/utils/auth";
 import { isObject } from "lodash-es";
@@ -229,10 +230,15 @@ const props = defineProps<{
   hiddenCover?: boolean;
   hiddenAlbum?: boolean;
   hiddenSize?: boolean;
+  // 显示复选框
+  showCheckbox?: boolean;
+  // 复选框状态
+  checked?: boolean;
 }>();
 
 const emit = defineEmits<{
   "show-menu": [event: MouseEvent];
+  "checkbox-change": [checked: boolean];
 }>();
 
 const { isSmallScreen } = useMobile();
@@ -314,35 +320,41 @@ const albumName = computed(() => {
     }
   }
   .num {
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 40px;
-    min-width: 40px;
-    font-weight: bold;
-    margin-right: 12px;
-    .n-icon {
-      transition:
-        opacity 0.3s,
-        transform 0.3s;
-      :deep(.svg-container) {
-        color: var(--primary-hex);
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 40px;
+      min-width: 40px;
+      font-weight: bold;
+      margin-right: 12px;
+      .n-icon {
+        transition:
+          opacity 0.3s,
+          transform 0.3s;
+        :deep(.svg-container) {
+          color: var(--primary-hex);
+        }
+      }
+      .status,
+      .play {
+        position: absolute;
+        opacity: 0;
+        transform: scale(0.8);
+        transition:
+          opacity 0.3s,
+          transform 0.3s;
+        &:active {
+          opacity: 0.6 !important;
+        }
+      }
+      // 当显示复选框时，不显示播放按钮
+      :has(.n-checkbox) {
+        .play {
+          display: none;
+        }
       }
     }
-    .status,
-    .play {
-      position: absolute;
-      opacity: 0;
-      transform: scale(0.8);
-      transition:
-        opacity 0.3s,
-        transform 0.3s;
-      &:active {
-        opacity: 0.6 !important;
-      }
-    }
-  }
   .title {
     flex: 1;
     min-width: 0;
@@ -454,9 +466,8 @@ const albumName = computed(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 80px;
-    gap: 12px;
-    .action-icon {
+    width: 60px;
+    .n-icon {
       color: var(--primary-hex);
       transition: transform 0.3s;
       cursor: pointer;
@@ -469,7 +480,7 @@ const albumName = computed(() => {
     }
   }
   .meta {
-    width: 50px;
+    width: 60px;
     font-size: 13px;
     text-align: center;
     &.size {

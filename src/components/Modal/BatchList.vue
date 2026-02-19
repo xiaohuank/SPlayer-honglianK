@@ -39,19 +39,7 @@
         </n-popover>
       </n-flex>
       <n-flex class="menu">
-        <!-- 批量下载 -->
-        <n-button
-          :disabled="!checkCount || isLocal"
-          type="primary"
-          strong
-          secondary
-          @click="handleBatchDownloadClick"
-        >
-          <template #icon>
-            <SvgIcon name="Download" />
-          </template>
-          批量下载
-        </n-button>
+
         <!-- 批量删除 -->
         <n-button
           v-if="playListId"
@@ -73,6 +61,19 @@
             <SvgIcon name="Delete" />
           </template>
           删除选中的歌曲
+        </n-button>
+        <!-- 批量下载 -->
+        <n-button
+          :disabled="!checkCount"
+          type="info"
+          strong
+          secondary
+          @click="openDownloadSongs(checkSongData)"
+        >
+          <template #icon>
+            <SvgIcon name="Download" />
+          </template>
+          批量下载
         </n-button>
         <!-- 添加到歌单 -->
         <n-button
@@ -110,11 +111,11 @@
 import type { DataTableColumns, DataTableRowKey } from "naive-ui";
 import type { SongType } from "@/types/main";
 import { isArray, isObject } from "lodash-es";
-import { openPlaylistAdd } from "@/utils/modal";
+import { openPlaylistAdd, openDownloadSongs } from "@/utils/modal";
 import { deleteSongs } from "@/utils/auth";
 import { NInput, NInputNumber, NButton, NText, NFlex } from "naive-ui";
 import { useLocalStore } from "@/stores";
-import { openDownloadSongs } from "@/utils/modal";
+
 
 const localStore = useLocalStore();
 
@@ -302,14 +303,7 @@ const handleDeleteLocalSongs = () => {
   });
 };
 
-// 批量下载处理
-const handleBatchDownloadClick = () => {
-  if (checkSongData.value.length === 0) {
-    window.$message.warning("请选择要下载的歌曲");
-    return;
-  }
-  openDownloadSongs(checkSongData.value);
-};
+
 </script>
 
 <style lang="scss" scoped>

@@ -14,6 +14,18 @@ import { SongType } from "@/types/main";
 import { subsonic, jellyfin, emby } from "@/api/streaming";
 import localforage from "localforage";
 
+// 防抖函数
+const debounce = <T extends (...args: any[]) => any>(func: T, wait: number): ((...args: Parameters<T>) => void) => {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  return (...args: Parameters<T>) => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      func(...args);
+      timeout = null;
+    }, wait);
+  };
+};
+
 // 创建存储实例
 const streamingDB = localforage.createInstance({
   name: "streaming-data",
@@ -93,6 +105,18 @@ const createStreamingStore = () => {
     }
   };
 
+  // 防抖保存服务器配置
+  const debouncedSaveServers = debounce(async () => {
+    try {
+      // 使用 JSON 序列化来避免 DataCloneError
+      const serversData = JSON.parse(JSON.stringify(servers.value));
+      await streamingDB.setItem("servers", serversData);
+      await streamingDB.setItem("activeServerId", activeServerId.value);
+    } catch (error) {
+      console.error("Failed to save streaming servers (debounced):", error);
+    }
+  }, 500);
+
   /**
    * 添加服务器配置
    */
@@ -105,7 +129,7 @@ const createStreamingStore = () => {
     };
 
     servers.value.push(newServer);
-    await saveServers();
+    debouncedSaveServers();
 
     return newServer;
   };
@@ -121,7 +145,7 @@ const createStreamingStore = () => {
     if (index === -1) return false;
 
     servers.value[index] = { ...servers.value[index], ...updates };
-    await saveServers();
+    debouncedSaveServers();
 
     return true;
   };
@@ -142,7 +166,7 @@ const createStreamingStore = () => {
       clearCache();
     }
 
-    await saveServers();
+    debouncedSaveServers();
     return true;
   };
 

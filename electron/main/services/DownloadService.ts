@@ -1,7 +1,7 @@
 import type { SongMetadata } from "@native/tools";
 import { app, BrowserWindow } from "electron";
-import { mkdir, access, writeFile, rename, unlink } from "node:fs/promises";
-import { createWriteStream } from "node:fs";
+import { mkdir, access, writeFile, rename, unlink, rm } from "node:fs/promises";
+import * as fs from "node:fs";
 import { join, resolve } from "node:path";
 import { ipcLog } from "../logger";
 import { useStore } from "../store";
@@ -10,12 +10,20 @@ import { getArtistNames } from "../utils/format";
 import https from "node:https";
 import http from "node:http";
 
-type toolModule = typeof import("@native/tools");
-const tools: toolModule = loadNativeModule("tools.node", "tools");
+interface toolModule {
+  DownloadTask: any;
+  writeMusicMetadata?: (filePath: string, metadata: any, coverPath?: string) => Promise<void>;
+}
+
+const tools = loadNativeModule("tools.node", "tools") as toolModule | null;
 
 export class DownloadService {
   /** 存储活动下载任务：ID -> DownloadTask 实例 */
   private activeDownloads = new Map<number, any>();
+  /** 存储下载任务的临时文件路径：ID -> 临时文件路径 */
+  private tempFilePaths = new Map<number, string>();
+  /** 存储下载任务的临时文件夹路径：ID -> 临时文件夹路径 */
+  private tempDirPaths = new Map<number, string>();
 
   /**
    * 处理文件下载请求
@@ -33,6 +41,7 @@ export class DownloadService {
       path: string;
       downloadMeta?: boolean;
       downloadCover?: boolean;
+      downloadAnimatedCover?: boolean;
       downloadLyric?: boolean;
       saveMetaFile?: boolean;
       lyric?: string;
@@ -56,7 +65,7 @@ export class DownloadService {
         fileName,
         fileType,
         path,
-lyric,
+        lyric,
         downloadMeta,
         downloadCover,
         downloadLyric,
@@ -65,19 +74,31 @@ lyric,
         referer,
       } = options;
       // 规范化路径
-      const basePath = resolve(path);
-      // 为每个歌曲创建单独的文件夹
-      const songFolderPath = join(basePath, fileName);
-      // 检查文件夹是否存在，不存在则自动递归创建
-      try {
-        await access(songFolderPath);
-      } catch {
-        await mkdir(songFolderPath, { recursive: true });
+      const downloadPath = resolve(path);
+      // 构建文件夹结构：歌手名文件夹\歌曲名文件夹
+      let finalDownloadPath = downloadPath;
+      if (songData) {
+        // 获取歌手名
+        let artistName = "未知歌手";
+        if (songData.artists && Array.isArray(songData.artists)) {
+          artistName = songData.artists.map((artist: any) => artist.name || artist).join("&");
+        } else if (songData.artist) {
+          artistName = songData.artist;
+        } else if (songData.ar && Array.isArray(songData.ar)) {
+          artistName = songData.ar.map((artist: any) => artist.name || artist).join("&");
+        }
+        // 清理文件名中的非法字符
+        const safeArtistName = artistName.replace(/[/:*?"<>|]/g, "&");
+        const safeFileName = fileName.replace(/[/:*?"<>|]/g, "&");
+        // 构建最终路径
+        finalDownloadPath = join(downloadPath, safeArtistName, safeFileName);
+        // 确保目录存在
+        await mkdir(finalDownloadPath, { recursive: true });
       }
-      // 规范化文件名
+      // 构建最终文件路径
       const finalFilePath = fileType
-        ? join(songFolderPath, `${fileName}.${fileType}`)
-        : join(songFolderPath, fileName);
+        ? join(finalDownloadPath, `${fileName}.${fileType}`)
+        : join(finalDownloadPath, fileName);
       // 检查文件是否存在
       if (skipIfExist) {
         try {
@@ -88,7 +109,7 @@ lyric,
         }
       }
       // 使用隐藏的临时文件夹来避免扫描
-      const tempDir = join(basePath, ".splayer_temp");
+      const tempDir = join(downloadPath, ".splayer_temp");
       try {
         await access(tempDir);
       } catch {
@@ -96,6 +117,11 @@ lyric,
       }
       const tempFileName = fileType ? `${fileName}.${fileType}` : fileName;
       const tempFilePath = join(tempDir, tempFileName);
+      
+      // 保存临时文件和文件夹路径
+      const downloadId = songData?.id || 0;
+      this.tempFilePaths.set(downloadId, tempFilePath);
+      this.tempDirPaths.set(downloadId, tempDir);
       // 准备元数据
       let metadata: SongMetadata | undefined | null = null;
       if (downloadMeta && songData) {
@@ -158,88 +184,176 @@ lyric,
       };
       // 获取配置
       const store = useStore();
+      // 使用 threadCount（如果可用），否则回退到 store
+      const threadCount = options.threadCount || store.get("downloadThreadCount") || 8;
+      // 使用 enableDownloadHttp2（如果可用），否则回退到 store
+      const enableHttp2 = options.enableDownloadHttp2 ?? store.get("enableDownloadHttp2", true);
+      // 下载动态封面
+      const animatedCoverEnabled = options.downloadAnimatedCover ?? store.get("downloadAnimatedCover", false);
       // 如果启用了 HTTP/2，将 HTTP 升级到 HTTPS（HTTP/2 通常需要 HTTPS）
       let finalUrl = url;
-      
-      // 尝试使用 native tools 下载
-      if (tools && tools.DownloadTask) {
-        ipcLog.info(`📥 Using native downloader for: ${finalUrl}`);
-        // 使用 threadCount（如果可用），否则回退到 store
-        const threadCount = options.threadCount || store.get("downloadThreadCount") || 8;
-        // 使用 enableDownloadHttp2（如果可用），否则回退到 store
-        const enableHttp2 = options.enableDownloadHttp2 ?? store.get("enableDownloadHttp2", true);
-        // 如果启用了 HTTP/2，将 HTTP 升级到 HTTPS
-        if (enableHttp2 && finalUrl.startsWith("http://")) {
-          finalUrl = finalUrl.replace(/^http:\/\//, "https://");
-          ipcLog.info(`🔒 Upgraded download URL to HTTPS for HTTP/2 support: ${finalUrl}`);
-        }
-        // 创建下载任务
-        const task = new tools.DownloadTask();
-        const downloadId = songData?.id || 0;
-        this.activeDownloads.set(downloadId, task);
+      if (enableHttp2 && finalUrl.startsWith("http://")) {
+        finalUrl = finalUrl.replace(/^http:\/\//, "https://");
+        ipcLog.info(`🔒 Upgraded download URL to HTTPS for HTTP/2 support: ${finalUrl}`);
+      }
+      // 下载完成后重命名为最终文件名
+        if (tools) {
+          // 使用原生模块下载
+          // 创建下载任务
+          const task = new tools.DownloadTask();
+          const downloadId = songData?.id || 0;
+          this.activeDownloads.set(downloadId, task);
 
-        try {
-          // 下载到临时文件
-          await task.download(
-            finalUrl,
-            tempFilePath,
-            metadata,
-            threadCount,
-            referer,
-            onProgress,
-            enableHttp2,
-          );
-          // 下载完成后重命名为最终文件名
-          await rename(tempFilePath, finalFilePath);
-        } catch (err) {
-          // 下载失败或取消，尝试清理临时文件
           try {
-            await unlink(tempFilePath);
-          } catch {
-            // 忽略清理错误
+            // 下载到临时文件
+            await task.download(
+              finalUrl,
+              tempFilePath,
+              metadata,
+              threadCount,
+              referer,
+              onProgress,
+              enableHttp2,
+            );
+            // 下载完成后重命名为最终文件名
+            await rename(tempFilePath, finalFilePath);
+            // 清理临时文件夹
+            try {
+              await unlink(tempFilePath);
+            } catch {
+              // 忽略清理错误
+            }
+            try {
+              await rm(tempDir, { recursive: true, force: true });
+            } catch {
+              // 忽略清理错误
+            }
+          } catch (err) {
+            // 下载失败或取消，尝试清理临时文件
+            try {
+              await unlink(tempFilePath);
+            } catch {
+              // 忽略清理错误
+            }
+            try {
+              await rm(tempDir, { recursive: true, force: true });
+            } catch {
+              // 忽略清理错误
+            }
+            throw err;
+          } finally {
+            // 清理所有相关记录
+            this.activeDownloads.delete(downloadId);
+            this.tempFilePaths.delete(downloadId);
+            this.tempDirPaths.delete(downloadId);
           }
-          throw err;
-        } finally {
-          this.activeDownloads.delete(downloadId);
+        } else {
+          // 使用 Node.js 内置模块作为 fallback
+          try {
+            await this.fallbackDownload(finalUrl, tempFilePath, onProgress, referer);
+            // 下载完成后重命名为最终文件名
+            await rename(tempFilePath, finalFilePath);
+            
+            // 写入元数据（如果启用且有原生模块）
+            if (downloadMeta && songData && tools) {
+              // 使用类型断言避免TypeScript编译错误
+              const toolsWithMetadata = tools as any;
+              if (toolsWithMetadata.writeMusicMetadata) {
+                const artistNames = getArtistNames(songData.artists);
+                const artist = artistNames.join(", ") || "未知艺术家";
+                const meta = {
+                  title: songData.name || "未知曲目",
+                  artist: artist,
+                  album: (typeof songData.album === "string" ? songData.album : songData.album?.name) || "未知专辑",
+                  lyric: downloadLyric && lyric ? lyric : undefined,
+                  description: songData.alia || "",
+                };
+                
+                // 下载封面
+                let coverPath: string | undefined;
+                if (downloadCover && (songData.coverSize?.l || songData.cover)) {
+                  const coverUrl = songData.coverSize?.l || songData.cover;
+                  coverPath = join(finalDownloadPath, `${fileName}.jpg`);
+                  await this.downloadCover(coverUrl, coverPath, referer);
+                }
+                
+                // 下载动态封面
+                if (downloadCover && animatedCoverEnabled && songData && songData.animatedCoverUrl) {
+                  const animatedCoverUrl = songData.animatedCoverUrl;
+                  // 从URL中提取文件扩展名
+                  let fileExt = '.gif'; // 默认使用gif
+                  const extMatch = animatedCoverUrl.match(/\.([^.]+)(?:[?#]|$)/i);
+                  if (extMatch) {
+                    fileExt = `.${extMatch[1].toLowerCase()}`;
+                  }
+                  const animatedCoverPath = join(finalDownloadPath, `${fileName}${fileExt}`);
+                  await this.downloadCover(animatedCoverUrl, animatedCoverPath, referer);
+                }
+                
+                // 写入元数据
+                await toolsWithMetadata.writeMusicMetadata(finalFilePath, meta, coverPath);
+              }
+            }
+          } catch (err) {
+            // 下载失败或取消，尝试清理临时文件
+            try {
+              await unlink(tempFilePath);
+            } catch {
+              // 忽略清理错误
+            }
+            try {
+              await rm(tempDir, { recursive: true, force: true });
+            } catch {
+              // 忽略清理错误
+            }
+            throw err;
+          } finally {
+            // 清理所有相关记录
+            const downloadId = songData?.id || 0;
+            this.activeDownloads.delete(downloadId);
+            this.tempFilePaths.delete(downloadId);
+            this.tempDirPaths.delete(downloadId);
+          }
         }
-      } else {
-        // Fallback: 使用 Node.js 内置模块下载
-        ipcLog.info(`📥 Using fallback downloader for: ${finalUrl}`);
-        await this.fallbackDownload(
-          finalUrl,
-          tempFilePath,
-          finalFilePath,
-          metadata,
-          onProgress,
-          referer
-        );
+
+      // 下载封面文件
+      if (downloadMeta && downloadCover && songData && (songData.coverSize?.l || songData.cover)) {
+        const coverUrl = songData.coverSize?.l || songData.cover;
+        const coverPath = join(finalDownloadPath, `${fileName}.jpg`);
+        // 检查封面文件是否存在
+        try {
+          await access(coverPath);
+          // 封面文件已存在，跳过下载
+        } catch {
+          // 封面文件不存在，下载
+          await this.downloadCover(coverUrl, coverPath, referer);
+        }
+      }
+
+      // 下载动态封面文件
+      if (downloadMeta && downloadCover && animatedCoverEnabled && songData && songData.animatedCoverUrl) {
+        const animatedCoverUrl = songData.animatedCoverUrl;
+        // 从URL中提取文件扩展名
+        let fileExt = '.gif'; // 默认使用gif
+        const extMatch = animatedCoverUrl.match(/\.([^.]+)(?:[?#]|$)/i);
+        if (extMatch) {
+          fileExt = `.${extMatch[1].toLowerCase()}`;
+        }
+        const animatedCoverPath = join(finalDownloadPath, `${fileName}${fileExt}`);
+        // 检查动态封面文件是否存在
+        try {
+          await access(animatedCoverPath);
+          // 动态封面文件已存在，跳过下载
+        } catch {
+          // 动态封面文件不存在，下载
+          await this.downloadCover(animatedCoverUrl, animatedCoverPath, referer);
+        }
       }
 
       // 创建同名歌词文件
-      ipcLog.info(`📝 Lyric creation check: lyric=${!!lyric}, downloadLyric=${downloadLyric}, lyric length=${lyric?.length || 0}`);
       if (lyric && downloadLyric) {
-        const lrcPath = join(songFolderPath, `${fileName}.lrc`);
+        const lrcPath = join(finalDownloadPath, `${fileName}.lrc`);
         await writeFile(lrcPath, lyric, "utf-8");
-        ipcLog.info(`📝 Created lyric file: ${lrcPath}`);
-      } else {
-        if (!downloadLyric) {
-          ipcLog.info(`📝 Skipped lyric creation: downloadLyric is false`);
-        } else if (!lyric) {
-          ipcLog.info(`📝 Skipped lyric creation: lyric is empty or null`);
-        } else if (lyric.length === 0) {
-          ipcLog.info(`📝 Skipped lyric creation: lyric is empty string`);
-        }
-      }
-
-      // 下载封面文件
-      if (downloadCover && songData?.coverSize?.l) {
-        const coverPath = join(songFolderPath, `${fileName}.jpg`);
-        try {
-          await this.downloadCover(songData.coverSize.l, coverPath, referer);
-          ipcLog.info(`🖼️ Downloaded cover file: ${coverPath}`);
-        } catch (error) {
-          ipcLog.warn(`⚠️ Failed to download cover: ${error}`);
-        }
       }
 
       return { status: "success" };
@@ -256,66 +370,49 @@ lyric,
   }
 
   /**
-   * 取消下载
-   * @param songId 歌曲ID
-   * @returns 是否成功取消
+   * 使用 Node.js 内置模块下载文件（fallback）
    */
-  cancelDownload(songId: number): boolean {
-    const task = this.activeDownloads.get(songId);
-    if (task) {
-      task.cancel();
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * Fallback 下载方法 - 使用 Node.js 内置模块
-   */
-  private async fallbackDownload(
-    url: string,
-    tempFilePath: string,
-    finalFilePath: string,
-    _metadata: any,
-    onProgress: (data: any) => void,
-    referer?: string
-  ): Promise<void> {
+  private async fallbackDownload(url: string, filePath: string, onProgress: (data: any) => void, referer?: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https://') ? https : http;
       const request = protocol.get(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          ...(referer && { 'Referer': referer })
-        }
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36',
+          'Referer': referer || 'https://music.163.com',
+        },
       }, (response) => {
         if (response.statusCode !== 200) {
-          reject(new Error(`HTTP error! status: ${response.statusCode}`));
+          reject(new Error(`HTTP error ${response.statusCode}`));
           return;
         }
 
         const contentLength = parseInt(response.headers['content-length'] || '0', 10);
         let downloaded = 0;
 
-        const fileStream = createWriteStream(tempFilePath);
+        const fileStream = fs.createWriteStream(filePath);
+        response.pipe(fileStream);
 
         response.on('data', (chunk) => {
-          fileStream.write(chunk);
           downloaded += chunk.length;
-          
-          if (contentLength > 0) {
-            const percent = (downloaded / contentLength) * 100;
-            onProgress({ percent, transferredBytes: downloaded, totalBytes: contentLength });
-          }
+          const percent = contentLength ? (downloaded / contentLength) * 100 : 0;
+          onProgress({
+            percent: percent,
+            transferredBytes: downloaded,
+            totalBytes: contentLength,
+          });
         });
 
-        response.on('end', async () => {
-          fileStream.end();
-          try {
-            await rename(tempFilePath, finalFilePath);
-            resolve();
-          } catch (err) {
-            reject(err);
-          }
+        fileStream.on('finish', () => {
+          onProgress({
+            percent: 100,
+            transferredBytes: downloaded,
+            totalBytes: contentLength,
+          });
+          resolve();
+        });
+
+        fileStream.on('error', (err) => {
+          reject(err);
         });
       });
 
@@ -323,36 +420,28 @@ lyric,
         reject(err);
       });
 
-      request.setTimeout(60000, () => {
-        request.destroy();
-        reject(new Error('Download timeout'));
-      });
+      request.end();
     });
   }
 
   /**
    * 下载封面文件
    */
-  private async downloadCover(
-    coverUrl: string,
-    coverPath: string,
-    referer?: string
-  ): Promise<void> {
+  private async downloadCover(url: string, filePath: string, referer?: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const protocol = coverUrl.startsWith('https://') ? https : http;
-      const request = protocol.get(coverUrl, {
+      const protocol = url.startsWith('https://') ? https : http;
+      const request = protocol.get(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          ...(referer && { 'Referer': referer })
-        }
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36',
+          'Referer': referer || 'https://music.163.com',
+        },
       }, (response) => {
         if (response.statusCode !== 200) {
-          reject(new Error(`HTTP error! status: ${response.statusCode}`));
+          reject(new Error(`HTTP error ${response.statusCode}`));
           return;
         }
 
-        const fileStream = createWriteStream(coverPath);
-
+        const fileStream = fs.createWriteStream(filePath);
         response.pipe(fileStream);
 
         fileStream.on('finish', () => {
@@ -368,10 +457,151 @@ lyric,
         reject(err);
       });
 
-      request.setTimeout(30000, () => {
-        request.destroy();
-        reject(new Error('Cover download timeout'));
-      });
+      request.end();
     });
+  }
+
+  /**
+   * 取消下载
+   * @param songId 歌曲ID
+   * @returns 是否成功取消
+   */
+  async cancelDownload(songId: number): Promise<boolean> {
+    const task = this.activeDownloads.get(songId);
+    if (task) {
+      task.cancel();
+      
+      // 清理临时文件和文件夹
+      await this.cleanupTempFiles(songId);
+      
+      // 全局清理所有 .splayer_temp 文件夹
+      await this.cleanupAllSplayerTempFolders();
+      
+      return true;
+    }
+    return false;
+  }
+  
+  /**
+   * 清理临时文件和文件夹
+   * @param songId 歌曲ID
+   */
+  private async cleanupTempFiles(songId: number): Promise<void> {
+    try {
+      // 清理临时文件
+      const tempFilePath = this.tempFilePaths.get(songId);
+      if (tempFilePath) {
+        try {
+          await unlink(tempFilePath);
+          ipcLog.info(`🧹 Cleaned temp file: ${tempFilePath}`);
+        } catch (error) {
+          ipcLog.warn(`⚠️ Failed to clean temp file: ${tempFilePath}`, error);
+        }
+        this.tempFilePaths.delete(songId);
+      }
+      
+      // 清理临时文件夹
+      const tempDirPath = this.tempDirPaths.get(songId);
+      if (tempDirPath) {
+        try {
+          await rm(tempDirPath, { recursive: true, force: true });
+          ipcLog.info(`🧹 Cleaned temp dir: ${tempDirPath}`);
+        } catch (error) {
+          ipcLog.warn(`⚠️ Failed to clean temp dir: ${tempDirPath}`, error);
+        }
+        this.tempDirPaths.delete(songId);
+      }
+      
+      // 从活动下载中移除
+      this.activeDownloads.delete(songId);
+    } catch (error) {
+      ipcLog.error("Error cleaning up temp files:", error);
+    }
+  }
+  
+  /**
+   * 清理所有临时文件和文件夹
+   */
+  public async cleanupAllTempFiles(): Promise<void> {
+    try {
+      // 清理所有临时文件
+      for (const [, tempFilePath] of this.tempFilePaths.entries()) {
+        try {
+          await unlink(tempFilePath);
+          ipcLog.info(`🧹 Cleaned temp file: ${tempFilePath}`);
+        } catch (error) {
+          ipcLog.warn(`⚠️ Failed to clean temp file: ${tempFilePath}`, error);
+        }
+      }
+      this.tempFilePaths.clear();
+      
+      // 清理所有临时文件夹
+      for (const [, tempDirPath] of this.tempDirPaths.entries()) {
+        try {
+          await rm(tempDirPath, { recursive: true, force: true });
+          ipcLog.info(`🧹 Cleaned temp dir: ${tempDirPath}`);
+        } catch (error) {
+          ipcLog.warn(`⚠️ Failed to clean temp dir: ${tempDirPath}`, error);
+        }
+      }
+      this.tempDirPaths.clear();
+      
+      // 清空活动下载
+      this.activeDownloads.clear();
+    } catch (error) {
+      ipcLog.error("Error cleaning up all temp files:", error);
+    }
+  }
+
+  /**
+   * 全局清理所有 .splayer_temp 文件夹
+   * @param basePath 基础路径
+   */
+  public async cleanupAllSplayerTempFolders(basePath?: string): Promise<void> {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      
+      // 搜索并清理所有 .splayer_temp 文件夹
+      const searchAndClean = async (dir: string) => {
+        try {
+          const files = await fs.promises.readdir(dir);
+          for (const file of files) {
+            const fullPath = path.join(dir, file);
+            const stat = await fs.promises.stat(fullPath);
+            
+            if (stat.isDirectory()) {
+              if (file === '.splayer_temp') {
+                // 清理临时文件夹
+                try {
+                  await fs.promises.rm(fullPath, { recursive: true, force: true });
+                  ipcLog.info(`🧹 Globally cleaned temp dir: ${fullPath}`);
+                } catch (error) {
+                  ipcLog.warn(`⚠️ Failed to clean global temp dir: ${fullPath}`, error);
+                }
+              } else {
+                // 递归搜索
+                await searchAndClean(fullPath);
+              }
+            }
+          }
+        } catch (error) {
+          // 忽略权限错误等
+        }
+      };
+      
+      // 从多个可能的位置开始搜索
+      const searchPaths = [
+        basePath,
+        app.getPath('downloads'),
+        app.getPath('desktop')
+      ].filter(Boolean) as string[];
+      
+      for (const searchPath of searchPaths) {
+        await searchAndClean(searchPath);
+      }
+    } catch (error) {
+      ipcLog.error("Error cleaning up all splayer temp folders:", error);
+    }
   }
 }

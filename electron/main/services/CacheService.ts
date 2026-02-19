@@ -285,8 +285,8 @@ export class CacheService {
     // 如果设置为 0，则不限制
     if (limitSizeGB <= 0) return;
 
-    // 节流：每 10 分钟最多执行一次清理检查
-    if (Date.now() - this.lastCleanupTime < 10 * 60 * 1000) return;
+    // 节流：每 5 分钟最多执行一次清理检查
+    if (Date.now() - this.lastCleanupTime < 5 * 60 * 1000) return;
 
     const limitSizeBytes = limitSizeGB * 1024 * 1024 * 1024;
     const currentSize = await this.getSize();
@@ -297,7 +297,7 @@ export class CacheService {
     const targetFreeSize = currentSize - limitSizeBytes + 100 * 1024 * 1024;
     let freedSize = 0;
 
-    // 清理顺序：优先清理 music，然后是其他类型
+    // 清理顺序：优先清理 music，然后是 lyrics 和 list-data，最后是 local-data
     const cleanOrder: CacheResourceType[] = ["music", "lyrics", "list-data", "local-data"];
 
     for (const cacheType of cleanOrder) {

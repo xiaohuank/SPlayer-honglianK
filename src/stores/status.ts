@@ -218,7 +218,7 @@ export const useStatusStore = defineStore("status", {
       endTime: 0,
       waitSongEnd: true,
     },
-    developerMode: false,
+    developerMode: true,
     themeBackgroundMode: "color",
     /** 背景图配置 */
     backgroundConfig: {

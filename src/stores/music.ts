@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import type { SongType } from "@/types/main";
 import { isElectron } from "@/utils/env";
 import { cloneDeep } from "lodash-es";
+import { toRaw } from "vue";
 import { SongLyric } from "@/types/lyric";
 import { sendTaskbarLyrics } from "@/core/player/PlayerIpc";
 
@@ -107,14 +108,14 @@ export const useMusicStore = defineStore("music", {
       }
       // 更新歌词窗口数据
       if (isElectron) {
-        // 桌面歌词
+        // 桌面歌词 - 使用 toRaw 获取原始数据，避免响应式数据问题
         window.electron.ipcRenderer.send(
           "play-lyric-change",
           cloneDeep({
             songId: this.playSong?.id,
             lyricLoading: false,
-            lrcData: this.songLyric.lrcData ?? [],
-            yrcData: this.songLyric.yrcData ?? [],
+            lrcData: toRaw(this.songLyric.lrcData) ?? [],
+            yrcData: toRaw(this.songLyric.yrcData) ?? [],
           }),
         );
         // 状态栏歌词

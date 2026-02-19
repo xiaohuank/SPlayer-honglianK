@@ -189,6 +189,11 @@ const lyricSourceOptions = computed(() => {
   if (settingStore.enableOnlineTTMLLyric) {
     options.push({ label: "TTML 优先", value: "ttml" });
   }
+  // 添加额外用户选项
+  if (settingStore?.enableUserLyricSources) {
+    options.push({ label: "用户源 1", value: "user1" });
+    options.push({ label: "用户源 2", value: "user2" });
+  }
   return options;
 });
 

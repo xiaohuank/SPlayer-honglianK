@@ -9,6 +9,18 @@ const localDB = localforage.createInstance({
   storeName: "local",
 });
 
+// 防抖函数
+const debounce = <T extends (...args: any[]) => any>(func: T, wait: number): ((...args: Parameters<T>) => void) => {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  return (...args: Parameters<T>) => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      func(...args);
+      timeout = null;
+    }, wait);
+  };
+};
+
 /**
  * 生成本地歌单 ID（16位数字）
  * 使用时间戳 + 随机数确保唯一性
@@ -48,8 +60,9 @@ const createLocalStore = () => {
   // 更新本地歌曲
   const updateLocalSong = async (songs: SongType[]) => {
     try {
-      await localDB.setItem("local-songs", cloneDeep(songs));
       localSongs.value = songs;
+      // 使用防抖处理本地存储写入
+      debouncedSaveLocalSongs();
     } catch (error) {
       console.error("Error updating local songs:", error);
       throw error;
@@ -61,8 +74,9 @@ const createLocalStore = () => {
     try {
       const playlist = cloneDeep(localSongs.value);
       playlist.splice(index, 1);
-      await localDB.setItem("local-songs", playlist);
       localSongs.value = playlist;
+      // 使用防抖处理本地存储写入
+      debouncedSaveLocalSongs();
     } catch (error) {
       console.error("Error deleting local song:", error);
       throw error;
@@ -134,15 +148,25 @@ const createLocalStore = () => {
     }
   };
 
-  // 保存本地歌单列表到存储
-  const saveLocalPlaylists = async () => {
+
+
+  // 防抖保存本地歌曲
+  const debouncedSaveLocalSongs = debounce(async () => {
+    try {
+      await localDB.setItem("local-songs", cloneDeep(localSongs.value));
+    } catch (error) {
+      console.error("Error saving local songs (debounced):", error);
+    }
+  }, 500);
+
+  // 防抖保存本地歌单
+  const debouncedSaveLocalPlaylists = debounce(async () => {
     try {
       await localDB.setItem("local-playlists", cloneDeep(localPlaylists.value));
     } catch (error) {
-      console.error("Error saving local playlists:", error);
-      throw error;
+      console.error("Error saving local playlists (debounced):", error);
     }
-  };
+  }, 500);
 
   // 创建本地歌单
   const createLocalPlaylist = async (
@@ -159,7 +183,7 @@ const createLocalStore = () => {
       updateTime: now,
     };
     localPlaylists.value.push(newPlaylist);
-    await saveLocalPlaylists();
+    debouncedSaveLocalPlaylists();
     return newPlaylist;
   };
 
@@ -174,7 +198,7 @@ const createLocalStore = () => {
     if (data.name !== undefined) playlist.name = data.name;
     if (data.description !== undefined) playlist.description = data.description;
     playlist.updateTime = Date.now();
-    await saveLocalPlaylists();
+    debouncedSaveLocalPlaylists();
     return true;
   };
 
@@ -183,7 +207,7 @@ const createLocalStore = () => {
     const index = localPlaylists.value.findIndex((p) => p.id === id);
     if (index === -1) return false;
     localPlaylists.value.splice(index, 1);
-    await saveLocalPlaylists();
+    debouncedSaveLocalPlaylists();
     return true;
   };
 
@@ -208,7 +232,7 @@ const createLocalStore = () => {
     if (oldFirstSongId !== newFirstSongId) {
       await updatePlaylistCover(playlist, true);
     }
-    await saveLocalPlaylists();
+    debouncedSaveLocalPlaylists();
     return { success: true, addedCount: newIds.length };
   };
 
@@ -231,7 +255,7 @@ const createLocalStore = () => {
       await updatePlaylistCover(playlist, true);
     }
 
-    await saveLocalPlaylists();
+    debouncedSaveLocalPlaylists();
     return true;
   };
 

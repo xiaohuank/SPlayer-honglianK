@@ -10,7 +10,7 @@ import FastGlob from "fast-glob";
 import pLimit from "p-limit";
 
 type toolModule = typeof import("@native/tools");
-const tools: toolModule = loadNativeModule("tools.node", "tools");
+const tools: toolModule | null = loadNativeModule("tools.node", "tools");
 
 /** 修改音乐元数据的输入参数 */
 export interface MusicMetadataInput {
@@ -342,7 +342,12 @@ export class MusicMetadataService {
         throw new Error("Native tools not loaded");
       }
 
-      await tools.writeMusicMetadata(songPath, meta, coverPath);
+      if (tools && tools.writeMusicMetadata) {
+        await tools.writeMusicMetadata(songPath, meta, coverPath);
+      } else {
+        ipcLog.error("[MusicMetadataService] 原生模块未加载，无法写入音乐元数据");
+        throw new Error("NATIVE_MODULE_NOT_LOADED");
+      }
       return true;
     } catch (error) {
       ipcLog.error("❌ Error setting music metadata:", error);
